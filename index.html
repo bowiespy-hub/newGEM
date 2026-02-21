@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="theme-color" content="#05060A"/>
+    <title>ATE Mobile V4 - Evolution</title>
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Noto+Sans+TC:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+    
+    <!-- Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/history@5/umd/history.development.js"></script>
+    <script src="https://unpkg.com/react-router@6.3.0/umd/react-router.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        ink: "#05060A",
+                        obsidian: "#0B0D14",
+                        surface: "#0F1424",
+                        panel: "#10192E",
+                        stroke: "rgba(255,255,255,0.10)",
+                        stroke2: "rgba(255,255,255,0.14)",
+                        gold: "#D4AF37",
+                        gold2: "#F4E09A",
+                        violet: "#8B5CF6",
+                        violet2: "#A78BFA",
+                        cyan: "#22D3EE",
+                        rose: "#FB7185",
+                        lime: "#A3E635",
+                    },
+                    fontFamily: {
+                        display: ["Manrope", "Noto Sans TC", "sans-serif"],
+                        body: ["Noto Sans TC", "Manrope", "sans-serif"],
+                        serif: ["Playfair Display", "Noto Serif TC", "serif"],
+                    },
+                    boxShadow: {
+                        glass: "0 14px 44px rgba(0,0,0,0.35)",
+                        glow: "0 0 18px rgba(139,92,246,0.22)",
+                        gold: "0 0 18px rgba(212,175,55,0.18)",
+                    },
+                    animation: {
+                        'fadeIn': 'fadeIn .18s ease-out forwards',
+                        'slideUp': 'slideUp .25s ease-out forwards',
+                        'popMove': 'popMove 1.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            'from': { opacity: 0, transform: 'translateY(6px)' },
+                            'to': { opacity: 1, transform: 'translateY(0)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: 0, transform: 'translateY(100%)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' },
+                        },
+                        popMove: {
+                            '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(.92)' },
+                            '18%': { opacity: 1, transform: 'translate(-50%, -58%) scale(1.02)' },
+                            '100%': { opacity: 0, transform: 'translate(-50%, -94%) scale(1.0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root{ color-scheme: dark; }
+
+        html{ font-size: 17px; }               
+        @media (max-width: 390px){ html{ font-size: 16.5px; } }
+        @media (min-width: 430px){ html{ font-size: 18px; } }
+
+        body{
+            min-height: 100dvh; background: #05060A; -webkit-tap-highlight-color: transparent; overflow-x: hidden;
+            font-family: "Noto Sans TC", Manrope, sans-serif; line-height: 1.35; color: #f1f5f9;
+        }
+
+        .ms { 
+            font-family: 'Material Symbols Outlined', sans-serif; 
+            font-variation-settings: 'FILL' 0, 'wght' 420, 'GRAD' 0, 'opsz' 24;
+            font-style: normal; font-weight: normal; text-transform: none;
+            letter-spacing: normal; word-wrap: normal; white-space: nowrap; direction: ltr;
+            -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+            -webkit-font-feature-settings: 'liga' 1; font-feature-settings: 'liga' 1;
+        }
+        .ms.fill { font-variation-settings: 'FILL' 1, 'wght' 520, 'GRAD' 0, 'opsz' 24; }
+
+        .glass {
+            background: rgba(16,25,46,0.58); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.10);
+        }
+        .glass2 {
+            background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.10);
+        }
+        .glass-sheet {
+            background: rgba(20, 25, 35, 0.85); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
+            border-top: 1px solid rgba(255,255,255,0.2); box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .chip {
+            display: inline-flex; align-items: center; gap: .42rem;
+            padding: .28rem .62rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.11);
+            background: rgba(255,255,255,0.045); font-size: 11px; font-weight: 900;
+            color: rgba(226,232,240,0.92); letter-spacing: .08em; text-transform: uppercase; user-select: none; white-space: nowrap;
+        }
+        .chip .ms { font-size: 16px; }
+
+        .popBadge {
+            padding: .30rem .58rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(15,20,36,0.78); font-weight: 950; letter-spacing: .08em; font-size: 13px;
+        }
+
+        .pb-safe { padding-bottom: calc(6.2rem + env(safe-area-inset-bottom)); }
+        .nav-safe { padding-bottom: calc(1.0rem + env(safe-area-inset-bottom)); }
+
+        .noise {
+            opacity: 0.045;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 240 240%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.75%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');
+        }
+
+        button, a { touch-action: manipulation; }
+        .tap44 { min-height: 44px; min-width: 44px; }
+        .app-container { max-width: 440px; margin: 0 auto; min-height: 100vh; position: relative; background: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, createContext, useContext, useRef, useMemo, useCallback } = React;
+        const { MemoryRouter, Routes, Route, useNavigate, useLocation } = ReactRouterDOM;
+
+        const AppContext = createContext();
+
+        const LEVELS = [
+            { level: 1, title: '覺醒者 (Awakened)', minXp: 0 },
+            { level: 2, title: '探索者 (Seeker)', minXp: 500 },
+            { level: 3, title: '進化者 (Evolver)', minXp: 1200 },
+            { level: 4, title: '超凡者 (Transcendent)', minXp: 2500 },
+            { level: 5, title: '星辰領航員 (Stellar Navigator)', minXp: 5000 },
+        ];
+
+        const TASKS = {
+            water: { category: 'body', xp: 10 }, 
+            squats: { category: 'body', xp: 50, duration: 10 * 60 },
+            stretch: { category: 'body', xp: 50, duration: 10 * 60 },
+            muscle: { category: 'body', xp: 150, duration: 30 * 60 },
+            poop: { category: 'body', xp: 30 },
+            m1_protein: { category: 'body', xp: 15 },
+            m1_fiber: { category: 'body', xp: 15 },
+            m2_protein: { category: 'body', xp: 15 },
+            m2_fiber: { category: 'body', xp: 15 },
+            reading: { category: 'mind', xp: 100, duration: 20 * 60 },
+            skill: { category: 'mind', xp: 80, duration: 15 * 60 },
+            review: { category: 'mind', xp: 60 },
+            strategy: { category: 'mind', xp: 60 }, 
+            gratitude: { category: 'mind', xp: 50 },
+            devotion: { category: 'spirit', xp: 50, duration: 10 * 60 },
+            verse: { category: 'spirit', xp: 40 },
+            healing: { category: 'spirit', xp: 40 }
+        };
+
+        const TASK_NAMES = {
+            water: '水分', squats: '深蹲 Squats', stretch: '拉筋 Stretch', muscle: '肌肉訓練 Workout', poop: '排便 Digestion',
+            m1_protein: '一餐蛋白 M1 Pro', m1_fiber: '一餐纖維 M1 Fib', m2_protein: '二餐蛋白 M2 Pro', m2_fiber: '二餐纖維 M2 Fib',
+            reading: '閱讀 Reading', skill: '技能 Skill', review: '復盤 Review', strategy: '策略 Strategy', gratitude: '感恩 Gratitude',
+            devotion: '靈修 Devotion', verse: '經文 Verse', healing: '修復 Healing'
+        };
+
+        const VERSES = [
+            { text: "For God has not given us a spirit of fear, but of power and of love and of a sound mind.", ref: "2 Timothy 1:7" },
+            { text: "I can do all things through Christ who strengthens me.", ref: "Philippians 4:13" },
+            { text: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", ref: "Joshua 1:9" },
+            { text: "But the fruit of the Spirit is love, joy, peace, forbearance, kindness, goodness, faithfulness, gentleness and self-control.", ref: "Galatians 5:22-23" },
+            { text: "Let all that you do be done in love.", ref: "1 Corinthians 16:14" },
+            { text: "Trust in the Lord with all your heart and lean not on your own understanding.", ref: "Proverbs 3:5" },
+            { text: "Come to me, all you who are weary and burdened, and I will give you rest.", ref: "Matthew 11:28" }
+        ];
+
+        const getTodayString = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        };
+
+        const getVerseForDate = (dateStr) => {
+            if (!dateStr) return VERSES[0];
+            const sum = dateStr.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+            return VERSES[sum % VERSES.length];
+        };
+
+        // 錯誤邊界：防止 React 整個崩潰白畫面
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+            render() {
+                if (this.state.hasError) {
+                    return <div className="p-10 text-white text-sm"><h1 className="text-rose font-bold mb-2">系統發生錯誤</h1><p className="opacity-70">{this.state.error.toString()}</p><button onClick={()=>window.location.reload()} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">重新載入</button></div>;
+                }
+                return this.props.children;
+            }
+        }
+
+        const AppProvider = ({ children }) => {
+            const STORAGE_KEY = 'ATE_APP_DATA_V10';
+
+            const loadInitialState = () => {
+                try {
+                    const data = localStorage.getItem(STORAGE_KEY);
+                    return data ? JSON.parse(data) : {};
+                } catch (e) {
+                    return {};
+                }
+            };
+
+            const savedState = loadInitialState();
+
+            const [profile, setProfile] = useState(savedState.profile || { name: 'Aether', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=D4AF37' });
+            const [xp, setXp] = useState(savedState.xp || 0); 
+            const [streak, setStreak] = useState(savedState.streak || 0);
+            const [logs, setLogs] = useState(savedState.logs || {});
+            
+            const [toasts, setToasts] = useState([]);
+            const [activeDate, setActiveDate] = useState(getTodayString());
+            const [sttLang, setSttLang] = useState('AUTO'); 
+            const [surpriseQuest, setSurpriseQuest] = useState(null);
+
+            useEffect(() => {
+                if (!logs[activeDate]) {
+                    setLogs(prev => ({
+                        ...prev,
+                        [activeDate]: {
+                            water: 0, squats: false, stretch: false, muscle: false, poop: null,
+                            m1_protein: 0, m1_fiber: 0, m2_protein: 0, m2_fiber: 0,
+                            reading: false, readLog: '', skill: false, review: '', strategy: '', gratitude: '',
+                            devotion: false, verse: '', healing: ''
+                        }
+                    }));
+                }
+            }, [activeDate, logs]);
+
+            useEffect(() => {
+                try {
+                    const stateToSave = { profile, xp, streak, logs };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+                } catch (e) {
+                    console.error("Local Storage 儲存失敗", e);
+                }
+            }, [profile, xp, streak, logs]);
+
+            const levelInfo = useMemo(() => {
+                let current = LEVELS[0];
+                let next = LEVELS[1];
+                for (let i = 0; i < LEVELS.length; i++) {
+                    if (xp >= LEVELS[i].minXp) {
+                        current = LEVELS[i];
+                        next = LEVELS[i + 1] || LEVELS[i];
+                    }
+                }
+                const progress = next.minXp > current.minXp ? ((xp - current.minXp) / (next.minXp - current.minXp)) * 100 : 100;
+                return { ...current, next, progress, currentXpInLevel: xp - current.minXp, totalXpForNext: next.minXp - current.minXp };
+            }, [xp]);
+
+            const triggerToast = useCallback((amount, text) => {
+                const id = Date.now() + Math.random();
+                setToasts(prev => [...prev, { id, amount, text }]);
+                setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 1500);
+            }, []);
+
+            const updateTask = useCallback((date, taskKey, value) => {
+                setLogs(prevLogs => {
+                    const dayLog = prevLogs[date] || {};
+                    const oldValue = dayLog[taskKey];
+                    let xpChange = 0;
+                    
+                    const dietKeys = ['m1_protein', 'm1_fiber', 'm2_protein', 'm2_fiber'];
+
+                    if (typeof value === 'boolean') {
+                        if (value && !oldValue) xpChange = TASKS[taskKey].xp;
+                        else if (!value && oldValue) xpChange = -TASKS[taskKey].xp;
+                    } else if (taskKey === 'water') {
+                        const diff = value - (oldValue || 0);
+                        xpChange = (diff / 250) * TASKS.water.xp;
+                    } else if (dietKeys.includes(taskKey)) {
+                        const diff = value - (oldValue || 0);
+                        xpChange = diff * TASKS[taskKey].xp;
+                    } else if (typeof value === 'string') {
+                        const isNowValid = value && value.trim() !== '';
+                        const wasValid = oldValue && oldValue.trim() !== '';
+                        if (isNowValid && !wasValid) xpChange = TASKS[taskKey].xp;
+                        else if (!isNowValid && wasValid) xpChange = -TASKS[taskKey].xp;
+                    } else if (taskKey === 'poop') {
+                        if (value && !oldValue) xpChange = TASKS.poop.xp;
+                        else if (!value && oldValue) xpChange = -TASKS.poop.xp;
+                    }
+
+                    if (xpChange !== 0) {
+                        setXp(currentXp => Math.max(0, currentXp + xpChange));
+                        const actionText = xpChange > 0 ? '獲得' : '扣除';
+                        const portionText = dietKeys.includes(taskKey) ? ' 份' : '';
+                        const shortName = TASK_NAMES[taskKey].split(' ')[0]; 
+                        triggerToast(xpChange, `${actionText} ${shortName}${portionText}`);
+                    }
+
+                    return { ...prevLogs, [date]: { ...dayLog, [taskKey]: value } };
+                });
+            }, [triggerToast]);
+
+            const getProgress = useCallback((date) => {
+                const log = logs[date] || {};
+                const checkString = (val) => val && val.trim() !== '';
+                
+                let bodyCount = 0;
+                if ((log.water || 0) >= 2000) bodyCount++;
+                if (log.squats) bodyCount++;
+                if (log.stretch) bodyCount++;
+                if (log.muscle) bodyCount++;
+                if (log.poop) bodyCount++;
+                if ((log.m1_protein || 0) > 0 && (log.m1_fiber || 0) > 0) bodyCount++; 
+                if ((log.m2_protein || 0) > 0 && (log.m2_fiber || 0) > 0) bodyCount++; 
+                
+                let mindCount = 0;
+                if (log.reading) mindCount++;
+                if (log.skill) mindCount++;
+                if (checkString(log.review)) mindCount++;
+                if (checkString(log.strategy)) mindCount++; 
+                if (checkString(log.gratitude)) mindCount++;
+
+                let spiritCount = 0;
+                if (log.devotion) spiritCount++;
+                if (checkString(log.verse)) spiritCount++;
+                if (checkString(log.healing)) spiritCount++;
+
+                const totalCompleted = bodyCount + mindCount + spiritCount;
+                
+                return {
+                    body: Math.round((bodyCount / 7) * 100),
+                    mind: Math.round((mindCount / 5) * 100), 
+                    spirit: Math.round((spiritCount / 3) * 100),
+                    overall: Math.round((totalCompleted / 15) * 100) 
+                };
+            }, [logs]);
+
+            useEffect(() => {
+                if (Math.random() < 0.15 && !surpriseQuest) {
+                    setTimeout(() => {
+                        setSurpriseQuest({
+                            title: '隱藏的恩典 Secret Grace',
+                            desc: '此刻放下手機，深呼吸 1 分鐘，領受雙倍祝福！',
+                            xp: 150
+                        });
+                    }, 3500);
+                }
+            }, []);
+
+            return (
+                <AppContext.Provider value={{ 
+                    profile, setProfile, xp, setXp, levelInfo, streak, 
+                    logs, activeDate, setActiveDate, updateTask, getProgress, getTodayString,
+                    sttLang, setSttLang, getVerseForDate
+                }}>
+                    <div className="app-container">
+                        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+                            <div className="absolute -top-[18%] left-[12%] w-[95%] h-[55%] bg-violet/18 rounded-full blur-[130px]"></div>
+                            <div className="absolute -bottom-[18%] right-[-12%] w-[70%] h-[45%] bg-cyan/10 rounded-full blur-[120px]"></div>
+                            <div className="absolute inset-0 noise"></div>
+                        </div>
+
+                        {children}
+                        
+                        {toasts.map(toast => (
+                            <div key={toast.id} className="fixed left-1/2 top-[44%] z-[9999] pointer-events-none flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 animate-popMove font-display drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]">
+                                <div className={`text-[36px] font-black ${toast.amount > 0 ? 'text-lime' : 'text-rose'}`}>
+                                    {toast.amount > 0 ? '+' : ''}{toast.amount}
+                                </div>
+                                <div className="mt-1 popBadge text-white whitespace-nowrap">
+                                    {toast.text}
+                                </div>
+                            </div>
+                        ))}
+
+                        {surpriseQuest && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSurpriseQuest(null)}></div>
+                                <div className="relative glass rounded-2xl p-6 text-center shadow-glass max-w-sm w-full border border-gold/40 z-10">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gold via-gold2 to-gold"></div>
+                                    <span className="ms fill text-5xl text-gold mb-3 drop-shadow-[0_0_15px_rgba(212,175,55,0.8)]">auto_awesome</span>
+                                    <h3 className="text-[18px] font-display font-black text-white mb-2 tracking-wide">{surpriseQuest.title}</h3>
+                                    <p className="text-slate-300 text-[13px] mb-6 leading-relaxed">{surpriseQuest.desc}</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={() => setSurpriseQuest(null)} className="tap44 glass2 border border-white/10 rounded-xl text-[13px] font-black text-white active:scale-95 transition-transform">稍後再說 Skip</button>
+                                        <button onClick={() => {
+                                            setXp(x => x + surpriseQuest.xp);
+                                            triggerToast(surpriseQuest.xp, "完成挑戰");
+                                            setSurpriseQuest(null);
+                                        }} className="tap44 rounded-xl text-[13px] font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform">接受 Accept</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </AppContext.Provider>
+            );
+        };
+
+        const useAppContext = () => useContext(AppContext);
+
+        // --- Common UI Components ---
+
+        const TopDateBar = () => {
+            const { activeDate, setActiveDate, getTodayString } = useAppContext();
+            const todayStr = getTodayString();
+            const isToday = activeDate === todayStr;
+
+            const shiftDay = (days) => {
+                const d = new Date(activeDate);
+                d.setDate(d.getDate() + days);
+                setActiveDate(d.toISOString().split('T')[0]);
+            };
+
+            const displayDate = activeDate.replace(/-/g, ' / ');
+
+            return (
+                <header className="pt-9 px-4 pb-3 relative z-10">
+                    <div className="glass rounded-2xl px-3.5 py-2.5 shadow-glass">
+                        <div className="flex items-center justify-between gap-2">
+                            <button onClick={() => shiftDay(-1)} className="tap44 glass2 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center active:scale-95 transition-transform text-slate-300 hover:text-white">
+                                <span className="ms text-[20px]">chevron_left</span>
+                            </button>
+
+                            <div className="min-w-0 flex-1 text-center" onClick={() => !isToday && setActiveDate(todayStr)}>
+                                <div className="text-[11px] tracking-[0.22em] uppercase text-slate-400 font-extrabold">{isToday ? 'ACTIVE DATE' : 'HISTORY'}</div>
+                                <div className={`mt-1 inline-flex items-center justify-center gap-2 transition-transform ${!isToday ? 'cursor-pointer hover:scale-[0.99]' : ''}`}>
+                                    <span className={`text-[15px] font-black ${isToday ? 'text-white' : 'text-gold'}`}>{displayDate}</span>
+                                    {isToday ? <span className="chip"><span className="ms fill text-gold">today</span>Today</span> : <span className="chip bg-gold/10 border-gold/30"><span className="ms fill text-gold">replay</span>返回 Return</span>}
+                                </div>
+                            </div>
+
+                            <button onClick={() => shiftDay(1)} disabled={isToday} className={`tap44 glass2 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center transition-transform ${isToday ? 'opacity-30' : 'active:scale-95 text-slate-300 hover:text-white'}`}>
+                                <span className="ms text-[20px]">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        const BottomNav = () => {
+            const navigate = useNavigate();
+            const location = useLocation();
+            const isActive = (path) => location.pathname === path;
+            
+            const navItems = [
+                { path: '/', icon: 'dashboard', label: 'Hub' },
+                { path: '/body', icon: 'fitness_center', label: 'Body' },
+                { path: '/mind', icon: 'auto_stories', label: 'Mind' },
+                { path: '/calendar', icon: 'calendar_month', label: 'Evo' },
+            ];
+
+            return (
+                <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center nav-safe">
+                    <div className="glass mx-auto w-[92%] max-w-[390px] rounded-full flex justify-between items-center py-3.5 px-6 shadow-glass bg-obsidian/90">
+                        {navItems.map((item) => (
+                            <button key={item.path} onClick={() => navigate(item.path)}
+                                className={`flex flex-col items-center gap-1 w-14 transition-all duration-300 ${isActive(item.path) ? 'text-violet2 scale-105' : 'text-slate-500 hover:text-slate-300 opacity-70'}`}>
+                                <span className={`ms text-[24px] ${isActive(item.path) ? 'fill drop-shadow-glow' : ''}`}>{item.icon}</span>
+                                <span className={`text-[11px] ${isActive(item.path) ? 'font-black' : 'font-extrabold'}`}>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+            );
+        };
+
+        const InlineTaskCard = ({ icon, title, taskKey, themeColor = 'violet2' }) => {
+            const { activeDate, logs, updateTask } = useAppContext();
+            const log = logs[activeDate] || {};
+            const isDone = !!log[taskKey];
+            const taskConfig = TASKS[taskKey] || { duration: 60 };
+
+            const [timeLeft, setTimeLeft] = useState(taskConfig.duration);
+            const [isRunning, setIsRunning] = useState(false);
+
+            useEffect(() => {
+                let interval;
+                if (isRunning && timeLeft > 0) {
+                    interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+                } else if (timeLeft === 0 && !isDone && isRunning) {
+                    setIsRunning(false);
+                    updateTask(activeDate, taskKey, true);
+                    setTimeLeft(taskConfig.duration);
+                }
+                return () => clearInterval(interval);
+            }, [isRunning, timeLeft, isDone, activeDate, taskKey, updateTask]);
+
+            const toggleTimer = (e) => { e.stopPropagation(); setIsRunning(!isRunning); };
+            const resetTimer = (e) => { e.stopPropagation(); setIsRunning(false); setTimeLeft(taskConfig.duration); };
+            const toggleComplete = () => { 
+                setIsRunning(false); 
+                setTimeLeft(taskConfig.duration);
+                updateTask(activeDate, taskKey, !isDone); 
+            };
+
+            const formatTime = (sec) => {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            };
+
+            const colorClasses = {
+                rose: { text: 'text-rose', border: 'border-rose/40', bg: 'bg-rose/10', grad: 'from-rose via-violet2 to-cyan' },
+                violet2: { text: 'text-violet2', border: 'border-violet2/40', bg: 'bg-violet2/10', grad: 'from-violet via-violet2 to-cyan' },
+                cyan: { text: 'text-cyan', border: 'border-cyan/40', bg: 'bg-cyan/10', grad: 'from-cyan via-violet2 to-violet' }
+            };
+            const theme = colorClasses[themeColor] || colorClasses.violet2;
+
+            return (
+                <div className={`glass rounded-2xl p-4 shadow-glass transition-all duration-300 relative overflow-hidden flex items-center justify-between gap-2 ${isDone ? `${theme.bg} ${theme.border}` : ''}`}>
+                    {isRunning && <div className="absolute inset-y-0 left-0 bg-white/5 transition-all ease-linear" style={{width: `${100 - (timeLeft/taskConfig.duration)*100}%`}}></div>}
+                    
+                    <div className="min-w-0 flex-1 flex items-center gap-2 cursor-pointer relative z-10 active:scale-[0.98] transition-transform" onClick={toggleComplete}>
+                        <span className={`ms text-[20px] transition-colors ${isDone ? `fill ${theme.text}` : `fill ${theme.text}`}`}>
+                            {isDone ? 'check_circle' : icon}
+                        </span>
+                        <div>
+                            <div className={`text-[14px] font-black ${isDone ? theme.text : 'text-white'}`}>{title}</div>
+                            <div className="text-[11px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                                {isDone ? `已完成 +${taskConfig.xp}` : isRunning ? <span className={`${theme.text} font-mono animate-pulse text-[15px] tracking-tighter`}>{formatTime(timeLeft)}</span> : `目標 ${taskConfig.duration / 60} min · 點擊直完 Tap Done`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2.5 relative z-10">
+                        {!isDone ? (
+                            <div className="flex items-center gap-1.5">
+                                {timeLeft < taskConfig.duration ? (
+                                    <button onClick={resetTimer} className="tap44 glass2 border border-white/10 rounded-full w-10 h-10 flex items-center justify-center active:scale-95 transition-transform text-slate-300 hover:text-white">
+                                        <span className="ms text-[20px]">refresh</span>
+                                    </button>
+                                ) : null}
+                                <button onClick={toggleTimer} className={`tap44 rounded-full w-11 h-11 flex items-center justify-center active:scale-95 transition-transform border border-white/10 ${isRunning ? 'bg-white/10 text-white' : `bg-gradient-to-r ${theme.grad} text-white shadow-glow`}`}>
+                                    <span className="ms fill text-[22px]">{isRunning ? 'pause' : 'play_arrow'}</span>
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            );
+        };
+
+        const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
+            const { sttLang, setSttLang } = useAppContext();
+            const [isRecording, setIsRecording] = useState(false);
+            const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
+            
+            const recognitionRef = useRef(null);
+            const valueRef = useRef(value);
+            const onChangeRef = useRef(onChange);
+
+            useEffect(() => { valueRef.current = value; }, [value]);
+            useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
+            useEffect(() => {
+                if ('webkitSpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    
+                    const langMap = { 'AUTO': 'zh-HK', 'EN': 'en-US', 'ZH': 'zh-TW', 'YUE': 'yue-Hant-HK' };
+                    recognition.lang = langMap[sttLang] || 'zh-HK';
+
+                    recognition.onresult = (event) => {
+                        let finalTranscript = '';
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            if (event.results[i].isFinal) {
+                                finalTranscript += event.results[i][0].transcript;
+                            }
+                        }
+                        if (finalTranscript) {
+                            const currentVal = valueRef.current || '';
+                            onChangeRef.current((currentVal ? currentVal + ' ' : '') + finalTranscript.trim());
+                        }
+                    };
+                    
+                    recognition.onend = () => setIsRecording(false);
+                    recognition.onerror = () => setIsRecording(false);
+
+                    recognitionRef.current = recognition;
+                }
+
+                return () => {
+                    if (recognitionRef.current) {
+                        try { recognitionRef.current.abort(); } catch(e){}
+                    }
+                };
+            }, [sttLang]); 
+
+            const toggleRecord = () => {
+                if (!recognitionRef.current) {
+                    alert("您的瀏覽器不支援語音辨識功能，請使用鍵盤輸入。\nVoice dictation not supported in this browser.");
+                    return;
+                }
+                if (isRecording) {
+                    try { recognitionRef.current.stop(); } catch(e){}
+                    setIsRecording(false);
+                } else {
+                    try { 
+                        recognitionRef.current.start(); 
+                        setIsRecording(true);
+                    } catch(e) {
+                        console.error(e);
+                        setIsRecording(false);
+                    }
+                }
+            };
+
+            return (
+                <div>
+                    <section className={`glass rounded-2xl p-4 shadow-glass transition-colors ${isDone ? 'border-gold/40 bg-gold/5' : ''}`}>
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className={`ms text-[20px] fill ${isDone ? 'text-gold' : 'text-gold'}`}>{isDone ? 'check_circle' : icon}</span>
+                                <div>
+                                    <div className={`text-[14px] font-black ${isDone ? 'text-gold' : 'text-white'}`}>{title}</div>
+                                    <div className="text-[11px] text-slate-400 font-semibold">{isDone ? `已紀錄 +${TASKS[taskKey].xp}` : '文字/語音皆可 Text or Voice'}</div>
+                                </div>
+                            </div>
+                            <button onClick={toggleRecord} className={`tap44 glass2 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center active:scale-95 transition-all ${isRecording ? 'bg-rose border-rose text-white shadow-[0_0_15px_rgba(251,113,133,0.6)] animate-pulse' : 'text-cyan'}`}>
+                                <span className="ms fill text-[22px]">{isRecording ? 'mic' : 'mic_none'}</span>
+                            </button>
+                        </div>
+                        <textarea 
+                            value={value} onChange={e => onChange(e.target.value)}
+                            className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
+                            placeholder={placeholder}></textarea>
+                        
+                        <div className="mt-2.5 flex items-center justify-between">
+                            <div className="text-[10px] text-slate-500 font-semibold">※ 允許麥克風權限以使用語音 Allow Mic</div>
+                            <button onClick={() => setIsLangSheetOpen(true)} className="chip active:scale-95"><span className="ms fill text-violet2">language</span><span>{sttLang}</span></button>
+                        </div>
+                    </section>
+
+                    {/* Language Bottom Sheet */}
+                    {isLangSheetOpen ? (
+                        <div className="fixed inset-0 z-[300]">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsLangSheetOpen(false)}></div>
+                            <div className="absolute bottom-0 left-0 right-0 animate-slideUp max-w-md mx-auto">
+                                <div className="glass-sheet rounded-t-[32px] p-6 pb-12 w-full">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <div className="text-[11px] tracking-widest uppercase text-slate-400 font-extrabold">Dictation</div>
+                                            <div className="mt-1 text-[16px] font-black text-white">語音辨識語言 Language</div>
+                                        </div>
+                                        <button onClick={() => setIsLangSheetOpen(false)} className="tap44 glass2 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center active:scale-95 text-slate-300">
+                                            <span className="ms text-[20px]">close</span>
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
+                                        {['AUTO', 'EN', 'ZH', 'YUE'].map(lang => (
+                                            <button key={lang} onClick={() => { setSttLang(lang); setIsLangSheetOpen(false); }} className={`tap44 glass2 border border-white/10 rounded-xl py-3 text-[13px] font-black active:scale-95 transition-transform ${sttLang === lang ? 'bg-white/20 text-white border-white/40' : 'text-slate-300'}`}>
+                                                {lang === 'AUTO' ? 'AUTO (中英粵混雜)' : lang === 'ZH' ? '中文 Chinese' : lang === 'YUE' ? '廣東話 Cantonese' : lang}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            );
+        };
+
+        const SimpleTextarea = ({ value, onChange, placeholder, icon, title, isDone, themeColor = 'violet2', taskKey }) => {
+            const colorClass = themeColor === 'cyan' ? 'text-cyan border-cyan/40 bg-cyan/5' : 'text-violet2 border-violet2/40 bg-violet2/5';
+            const iconColor = themeColor === 'cyan' ? 'text-cyan' : 'text-violet2';
+
+            return (
+                <section className={`glass rounded-2xl p-4 shadow-glass transition-colors ${isDone ? colorClass : ''}`}>
+                    <div className="flex items-center gap-2">
+                        <span className={`ms fill text-[20px] ${isDone ? iconColor : iconColor}`}>{isDone ? 'check_circle' : icon}</span>
+                        <div>
+                            <div className={`text-[14px] font-black ${isDone ? iconColor : 'text-white'}`}>{title}</div>
+                            <div className="text-[11px] text-slate-400 font-semibold">{isDone ? `已紀錄 +${TASKS[taskKey].xp}` : '填寫即可得分'}</div>
+                        </div>
+                    </div>
+                    <textarea 
+                        value={value} onChange={e => onChange(e.target.value)}
+                        className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
+                        placeholder={placeholder}></textarea>
+                </section>
+            );
+        };
+
+
+        // --- Pages ---
+
+        const DashboardPage = () => {
+            const { profile, setProfile, levelInfo, streak, activeDate, getProgress, setXp, getVerseForDate } = useAppContext();
+            const prog = getProgress(activeDate);
+            const [isProfileOpen, setIsProfileOpen] = useState(false);
+            const fileInputRef = useRef(null);
+            
+            const [tempName, setTempName] = useState(profile.name);
+            const [tempAvatar, setTempAvatar] = useState(profile.avatar);
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => { setTempAvatar(reader.result); };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const currentVerse = useMemo(() => getVerseForDate(activeDate), [activeDate, getVerseForDate]);
+
+            return (
+                <div className="flex flex-col flex-1 animate-fadeIn">
+                    <TopDateBar />
+                    <section className="px-4 pb-4 relative z-10">
+                        {/* Profile Block */}
+                        <div className="glass rounded-2xl p-4 shadow-glass relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-violet/10 to-transparent pointer-events-none"></div>
+                            <div className="flex items-center gap-3.5 relative z-10">
+                                <button onClick={() => { setTempName(profile.name); setTempAvatar(profile.avatar); setIsProfileOpen(true); }} className="shrink-0 tap44 group" title="設定">
+                                    <div className="h-12 w-12 rounded-full overflow-hidden border border-white/15 bg-surface relative">
+                                        <img src={profile.avatar} alt="avatar" className="h-full w-full object-cover"/>
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="ms text-white text-[16px]">edit</span>
+                                        </div>
+                                    </div>
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="text-[16px] font-extrabold text-white truncate">{profile.name}</div>
+                                        <span className="chip"><span className="ms fill text-gold">workspace_premium</span><span>LV {levelInfo.level}</span></span>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-2.5">
+                                        <span className="chip"><span className="ms fill text-violet2">percent</span><span>{prog.overall}%</span></span>
+                                        <span className="chip"><span className="ms fill text-gold">bolt</span><span>{streak} Days</span></span>
+                                    </div>
+                                </div>
+                                <button onClick={() => { setTempName(profile.name); setTempAvatar(profile.avatar); setIsProfileOpen(true); }} className="tap44 glass2 border border-white/10 rounded-full w-11 h-11 flex items-center justify-center active:scale-95 transition-transform" title="設定 Profile">
+                                    <span className="ms text-[20px]">tune</span>
+                                </button>
+                            </div>
+
+                            <div className="mt-4 relative z-10">
+                                <div className="flex items-center justify-between text-[11px] text-slate-300 font-semibold">
+                                    <span className="tracking-widest uppercase text-slate-400">LEVEL PROGRESS</span>
+                                    <span className="text-violet2 font-extrabold text-[12px]">{Math.floor(levelInfo.currentXpInLevel)} / {levelInfo.totalXpForNext}</span>
+                                </div>
+                                <div className="mt-2 h-3 w-full rounded-full bg-white/5 border border-white/10 overflow-hidden shadow-inner relative">
+                                    <div className="h-full bg-gradient-to-r from-violet via-violet2 to-cyan rounded-full transition-all duration-1000 shadow-glow" style={{width: `${levelInfo.progress}%`}}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Daily Verse EN */}
+                        <div className="mt-4 glass2 rounded-2xl px-4 py-3.5 border border-white/10 shadow-glass">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[11px] tracking-[0.22em] uppercase text-slate-400 font-extrabold">Daily Verse 每日經文</div>
+                                <div className="text-[11px] text-gold font-extrabold tracking-widest">EN</div>
+                            </div>
+                            <div className="mt-2.5 text-[14px] leading-relaxed text-white font-semibold font-serif italic">
+                                "{currentVerse.text}"
+                            </div>
+                            <div className="mt-2 text-[12px] text-slate-400 font-semibold">— {currentVerse.ref}</div>
+                        </div>
+                    </section>
+
+                    <main className="px-4 pb-safe flex-1 space-y-4 relative z-10">
+                        {/* Sectioned Progress Blocks */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="glass2 rounded-2xl p-3 border border-white/10 shadow-glass text-center">
+                                <div className="flex items-center justify-center gap-1 mb-2">
+                                    <span className="ms fill text-[16px] text-rose">fitness_center</span>
+                                    <div className="text-[10px] font-black text-white">身體 Body</div>
+                                </div>
+                                <div className="mt-2 text-[16px] font-display font-black text-white">{prog.body}%</div>
+                            </div>
+                            <div className="glass2 rounded-2xl p-3 border border-white/10 shadow-glass text-center">
+                                <div className="flex items-center justify-center gap-1 mb-2">
+                                    <span className="ms fill text-[16px] text-violet2">auto_stories</span>
+                                    <div className="text-[10px] font-black text-white">心智 Mind</div>
+                                </div>
+                                <div className="mt-2 text-[16px] font-display font-black text-white">{prog.mind}%</div>
+                            </div>
+                            <div className="glass2 rounded-2xl p-3 border border-white/10 shadow-glass text-center">
+                                <div className="flex items-center justify-center gap-1 mb-2">
+                                    <span className="ms fill text-[16px] text-cyan">spa</span>
+                                    <div className="text-[10px] font-black text-white">靈修 Spirit</div>
+                                </div>
+                                <div className="mt-2 text-[16px] font-display font-black text-white">{prog.spirit}%</div>
+                            </div>
+                        </div>
+
+                        {/* Overall Progress */}
+                        <section className="glass rounded-2xl p-4 shadow-glass">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[14px] font-extrabold text-white">今日進度 Overall Progress</div>
+                                <div className="chip"><span className="ms fill text-gold">stars</span><span>{prog.overall >= 70 ? '達標' : '進行中'}</span></div>
+                            </div>
+                            <div className="mt-3 h-3 w-full rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-violet via-violet2 to-cyan rounded-full transition-all duration-500" style={{width: `${prog.overall}%`}}></div>
+                            </div>
+                            <div className="mt-3 text-[11px] text-slate-400 font-semibold leading-relaxed">
+                                {prog.overall >= 70 ? '恭喜！您已達標今日進化最低門檻，將延續連續紀錄。 Goal Achieved!' : '完成度達 70% 即可延續連續進化紀錄，繼續加油！ Reach 70% to continue your streak!'}
+                            </div>
+                        </section>
+                    </main>
+
+                    {/* Centered Profile Edit Modal (Fixed Position) */}
+                    {isProfileOpen ? (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsProfileOpen(false)}></div>
+                            <div className="relative glass rounded-2xl p-5 shadow-glass max-w-sm w-full border border-white/20 z-10">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-[15px] font-black text-white tracking-widest">個人資料 Profile</h3>
+                                    <button onClick={() => setIsProfileOpen(false)} className="tap44 glass2 border border-white/10 rounded-full w-10 h-10 flex items-center justify-center active:scale-95 text-slate-300">
+                                        <span className="ms text-[20px]">close</span>
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-4 mt-2">
+                                    <div className="flex flex-col items-center">
+                                        <button onClick={() => fileInputRef.current.click()} className="w-[80px] h-[80px] rounded-full glass p-1 mb-3 shadow-glass relative group active:scale-95 transition-transform overflow-hidden">
+                                            <img src={tempAvatar} className="w-full h-full rounded-full object-cover" alt="Preview" />
+                                            <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center">
+                                                <span className="ms text-white text-[20px]">photo_camera</span>
+                                            </div>
+                                        </button>
+                                        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像 Upload Image</div>
+                                        <div className="flex gap-2.5 justify-center w-full">
+                                            {['Felix', 'Aneka', 'Bottts', 'Adventurer'].map(seed => (
+                                                <div key={seed} onClick={() => setTempAvatar(`https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=D4AF37`)} className="w-10 h-10 rounded-full border border-white/10 cursor-pointer overflow-hidden hover:border-gold transition-colors bg-white/5">
+                                                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=D4AF37`} alt={seed} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] text-slate-400 font-extrabold mb-1 block">顯示名稱 Display Name</label>
+                                        <input type="text" value={tempName} onChange={e => setTempName(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 text-[14px] font-bold"/>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-3 mt-2">
+                                        <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
+                                        <button onClick={() => { 
+                                            if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
+                                                localStorage.removeItem('ATE_APP_DATA_V10');
+                                                window.location.reload();
+                                            }
+                                        }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">重置數據 Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            );
+        };
+
+        const BodyPage = () => {
+            const { activeDate, logs, updateTask, getProgress } = useAppContext();
+            const log = logs[activeDate] || {};
+            const prog = getProgress(activeDate);
+            const waterCurrent = log.water || 0;
+            const waterPercent = Math.min(100, (waterCurrent / 2000) * 100);
+
+            return (
+                <div className="flex flex-col flex-1 animate-fadeIn">
+                    <TopDateBar />
+                    <header className="px-4 pb-3 relative z-10">
+                        <div className="flex items-center justify-between mb-1">
+                            <div>
+                                <div className="text-[11px] tracking-[0.22em] uppercase text-rose font-extrabold">Body Evolution</div>
+                                <div className="mt-0.5 text-[20px] font-black text-white">身體進化</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[20px] font-display font-black text-white">{prog.body}<span className="text-[12px] text-slate-400 ml-0.5">%</span></div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="px-4 pb-safe flex-1 space-y-3 relative z-10 overflow-y-auto no-scrollbar">
+                        {/* 兩餐營養追蹤 (Protein & Fiber) */}
+                        <section className="glass rounded-2xl p-4 shadow-glass">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="ms fill text-rose text-[20px]">restaurant</span>
+                                <div className="text-[14px] font-black text-white">營養追蹤 <span className="text-[10px] text-slate-400 font-normal tracking-wider ml-1">NUTRITION</span></div>
+                            </div>
+                            
+                            {/* Nutritional Guide Box */}
+                            <div className="mb-4 bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed font-medium">
+                                <div className="flex items-start gap-1.5 mb-1.5">
+                                    <span className="ms fill text-amber-500 text-[14px] mt-0.5">egg_alt</span>
+                                    <span><span className="text-amber-500 font-bold">1份蛋白質 = </span> 1顆蛋 / 半掌心肉 / 半盒豆腐 / 1杯豆漿</span>
+                                </div>
+                                <div className="flex items-start gap-1.5">
+                                    <span className="ms fill text-lime text-[14px] mt-0.5">eco</span>
+                                    <span><span className="text-lime font-bold">1份纖維素 = </span> 1拳頭熟菜 / 1大碗生菜 / 1顆蘋果</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* 第一餐 */}
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
+                                        <span>Meal 1 第一餐</span>
+                                        {(log.m1_protein > 0 && log.m1_fiber > 0) ? <span className="text-lime flex items-center"><span className="ms text-[14px] mr-0.5">check_circle</span>達標</span> : null}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m1_protein > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/5'}`}>
+                                             <div className="flex items-center gap-1.5">
+                                                 <span className="ms fill text-amber-500 text-[16px]">egg_alt</span>
+                                                 <span className={`text-[12px] font-bold ${log.m1_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Pro</span>
+                                             </div>
+                                             <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
+                                                 <button onClick={() => updateTask(activeDate, 'm1_protein', Math.max(0, (log.m1_protein||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
+                                                 <span className="text-[15px] font-mono font-black text-white">{log.m1_protein||0}</span>
+                                                 <button onClick={() => updateTask(activeDate, 'm1_protein', (log.m1_protein||0) + 1)} className="w-7 h-7 flex items-center justify-center text-amber-500 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">add</span></button>
+                                             </div>
+                                        </div>
+                                        <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m1_fiber > 0 ? 'border-lime/40 bg-lime/10' : 'border-white/5'}`}>
+                                             <div className="flex items-center gap-1.5">
+                                                 <span className="ms fill text-lime text-[16px]">eco</span>
+                                                 <span className={`text-[12px] font-bold ${log.m1_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fib</span>
+                                             </div>
+                                             <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
+                                                 <button onClick={() => updateTask(activeDate, 'm1_fiber', Math.max(0, (log.m1_fiber||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
+                                                 <span className="text-[15px] font-mono font-black text-white">{log.m1_fiber||0}</span>
+                                                 <button onClick={() => updateTask(activeDate, 'm1_fiber', (log.m1_fiber||0) + 1)} className="w-7 h-7 flex items-center justify-center text-lime active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">add</span></button>
+                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="h-px w-full bg-white/10"></div>
+                                {/* 第二餐 */}
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
+                                        <span>Meal 2 第二餐</span>
+                                        {(log.m2_protein > 0 && log.m2_fiber > 0) ? <span className="text-lime flex items-center"><span className="ms text-[14px] mr-0.5">check_circle</span>達標</span> : null}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m2_protein > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/5'}`}>
+                                             <div className="flex items-center gap-1.5">
+                                                 <span className="ms fill text-amber-500 text-[16px]">egg_alt</span>
+                                                 <span className={`text-[12px] font-bold ${log.m2_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Pro</span>
+                                             </div>
+                                             <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
+                                                 <button onClick={() => updateTask(activeDate, 'm2_protein', Math.max(0, (log.m2_protein||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
+                                                 <span className="text-[15px] font-mono font-black text-white">{log.m2_protein||0}</span>
+                                                 <button onClick={() => updateTask(activeDate, 'm2_protein', (log.m2_protein||0) + 1)} className="w-7 h-7 flex items-center justify-center text-amber-500 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">add</span></button>
+                                             </div>
+                                        </div>
+                                        <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m2_fiber > 0 ? 'border-lime/40 bg-lime/10' : 'border-white/5'}`}>
+                                             <div className="flex items-center gap-1.5">
+                                                 <span className="ms fill text-lime text-[16px]">eco</span>
+                                                 <span className={`text-[12px] font-bold ${log.m2_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fib</span>
+                                             </div>
+                                             <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
+                                                 <button onClick={() => updateTask(activeDate, 'm2_fiber', Math.max(0, (log.m2_fiber||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
+                                                 <span className="text-[15px] font-mono font-black text-white">{log.m2_fiber||0}</span>
+                                                 <button onClick={() => updateTask(activeDate, 'm2_fiber', (log.m2_fiber||0) + 1)} className="w-7 h-7 flex items-center justify-center text-lime active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">add</span></button>
+                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="glass rounded-2xl p-4 shadow-glass">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="ms fill text-cyan text-[20px]">water_drop</span>
+                                        <div className="text-[14px] font-black text-white">水分 Hydration</div>
+                                    </div>
+                                    <div className="mt-2 text-[11px] text-slate-400 font-semibold">目標 2000ml</div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-2xl font-extrabold text-white">{waterCurrent}<span className="text-[12px] text-slate-400 font-semibold ml-1">ml</span></div>
+                                </div>
+                            </div>
+
+                            <div className="mt-3 h-3 w-full rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-cyan via-violet2 to-gold rounded-full transition-all duration-500" style={{width: `${waterPercent}%`}}></div>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-4 gap-2.5">
+                                <button onClick={() => updateTask(activeDate, 'water', Math.max(0, waterCurrent - 250))} className="tap44 glass2 border border-white/10 rounded-xl py-2.5 text-[13px] font-extrabold text-slate-200 active:scale-95 transition-transform">-250</button>
+                                <button onClick={() => updateTask(activeDate, 'water', waterCurrent + 250)} className="tap44 glass2 border border-white/10 rounded-xl py-2.5 text-[13px] font-extrabold text-white active:scale-95 transition-transform">+250</button>
+                                <button onClick={() => updateTask(activeDate, 'water', waterCurrent + 500)} className="tap44 glass2 border border-white/10 rounded-xl py-2.5 text-[13px] font-extrabold text-white active:scale-95 transition-transform">+500</button>
+                                <button onClick={() => updateTask(activeDate, 'water', waterCurrent + 1000)} className="tap44 rounded-xl py-2.5 text-[13px] font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform">+1L</button>
+                            </div>
+                        </section>
+
+                        <div className="flex items-center justify-between mt-1">
+                            <div className="text-[14px] font-extrabold text-white">體能任務 Physical Quests</div>
+                            <div className="text-[10px] text-slate-400 font-extrabold tracking-widest">TAP TO DONE</div>
+                        </div>
+
+                        <InlineTaskCard taskKey="squats" title="每日深蹲 Daily Squats" icon="fitness_center" themeColor="rose" />
+                        <InlineTaskCard taskKey="stretch" title="每日拉筋 Stretching" icon="accessibility" themeColor="rose" />
+                        <InlineTaskCard taskKey="muscle" title="肌肉訓練 Workout" icon="sports_gymnastics" themeColor="rose" />
+
+                        <section className="glass rounded-2xl p-4 shadow-glass flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="ms fill text-lime text-[20px]">health_and_safety</span>
+                                <div>
+                                    <div className="text-[14px] font-black text-white">排便 Digestion</div>
+                                    <div className="text-[11px] text-slate-400 font-semibold">正常才 +30</div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {['便秘', '正常', '腹瀉'].map(type => {
+                                    const isActive = log.poop === type;
+                                    return (
+                                        <button key={type} 
+                                            onClick={() => updateTask(activeDate, 'poop', isActive ? null : type)}
+                                            className={`tap44 px-3 py-2 rounded-xl text-[13px] font-black transition-all active:scale-95 ${isActive ? 'bg-lime text-black shadow-glow' : 'glass2 border border-white/10 text-white'}`}>
+                                            {type}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    </main>
+                </div>
+            );
+        };
+
+        const MindPage = () => {
+            const { activeDate, logs, updateTask, getProgress } = useAppContext();
+            const log = logs[activeDate] || {};
+            const prog = getProgress(activeDate);
+            const [tab, setTab] = useState('mind'); 
+
+            return (
+                <div className="flex flex-col flex-1 animate-fadeIn">
+                    <TopDateBar />
+                    <header className="px-4 pb-3 relative z-10">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <div className="text-[11px] tracking-[0.22em] uppercase font-extrabold text-violet2">{tab === 'mind' ? 'Mind Evolution' : 'Spirit Evolution'}</div>
+                                <div className="mt-0.5 text-[20px] font-black text-white">{tab === 'mind' ? '心智進化' : '靈修進化'}</div>
+                            </div>
+                            <div className="text-[20px] font-display font-black text-white">{tab==='mind' ? prog.mind : prog.spirit}<span className="text-[12px] text-slate-400 ml-0.5">%</span></div>
+                        </div>
+
+                        {/* Combined Mind & Spirit Tab Slider */}
+                        <div className="glass2 rounded-full p-1 border border-white/10 flex relative shadow-glass">
+                            <div className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-gradient-to-r from-violet via-violet2 to-cyan rounded-full shadow-glow transition-all duration-300 ease-out" 
+                                 style={{ left: tab === 'mind' ? '4px' : 'calc(50%)' }}></div>
+                            <button onClick={() => setTab('mind')} className={`flex-1 relative z-10 py-2 text-[13px] font-black text-center rounded-full transition-colors ${tab==='mind' ? 'text-white' : 'text-slate-400'}`}>心智 Mind</button>
+                            <button onClick={() => setTab('spirit')} className={`flex-1 relative z-10 py-2 text-[13px] font-black text-center rounded-full transition-colors ${tab==='spirit' ? 'text-white' : 'text-slate-400'}`}>靈修 Spirit</button>
+                        </div>
+                    </header>
+
+                    <main className="px-4 pb-safe flex-1 relative z-10 overflow-y-auto no-scrollbar">
+                        {tab === 'mind' ? (
+                            <div className="space-y-3 animate-fadeIn">
+                                <InlineTaskCard taskKey="reading" title="深度閱讀 Deep Reading" icon="menu_book" themeColor="violet2" />
+                                <InlineTaskCard taskKey="skill" title="新技能學習 Skill Learning" icon="lightbulb" themeColor="violet2" />
+                                
+                                <VoiceTextarea 
+                                    taskKey="review" icon="rate_review"
+                                    value={log.review || ''} onChange={(val) => updateTask(activeDate, 'review', val)}
+                                    title="今日復盤 Daily Review" activeDate={activeDate}
+                                    placeholder="學到了什麼？有什麼可以改善？(支援中英粵混講)" 
+                                    isDone={!!(log.review && log.review.trim())} />
+
+                                <VoiceTextarea 
+                                    taskKey="strategy" icon="note_alt"
+                                    value={log.strategy || ''} onChange={(val) => updateTask(activeDate, 'strategy', val)}
+                                    title="策略筆記 Strategy Notes" activeDate={activeDate}
+                                    placeholder="記下一個重點思路！(支援中英粵混講)" 
+                                    isDone={!!(log.strategy && log.strategy.trim())} />
+
+                                <SimpleTextarea 
+                                    taskKey="gratitude"
+                                    value={log.gratitude || ''} onChange={(val) => updateTask(activeDate, 'gratitude', val)}
+                                    title="感恩日記 Gratitude Journal" icon="favorite" themeColor="violet2"
+                                    placeholder="寫下一件值得感恩的小事..." 
+                                    isDone={!!(log.gratitude && log.gratitude.trim())} />
+                            </div>
+                        ) : (
+                            <div className="space-y-3 animate-fadeIn">
+                                <InlineTaskCard taskKey="devotion" title="靜心靈修 Devotion" icon="self_improvement" themeColor="cyan" />
+
+                                <SimpleTextarea 
+                                    taskKey="verse"
+                                    value={log.verse || ''} onChange={(val) => updateTask(activeDate, 'verse', val)}
+                                    title="經文與領受 Bible Verse" icon="auto_stories" themeColor="cyan"
+                                    placeholder="紀錄感動的經節與靈感..." 
+                                    isDone={!!(log.verse && log.verse.trim())} />
+                                    
+                                <SimpleTextarea 
+                                    taskKey="healing"
+                                    value={log.healing || ''} onChange={(val) => updateTask(activeDate, 'healing', val)}
+                                    title="自我啟發與修復 Self-Healing" icon="flare" themeColor="cyan"
+                                    placeholder="釋放重擔，給自己一句鼓勵的話..." 
+                                    isDone={!!(log.healing && log.healing.trim())} />
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const CalendarPage = () => {
+            const { getTodayString, activeDate, setActiveDate, getProgress, logs } = useAppContext();
+            const navigate = useNavigate();
+            const todayStr = getTodayString();
+            
+            const [viewDate, setViewDate] = useState(todayStr); 
+            const displayDateObj = new Date(viewDate);
+            
+            const [currentMonthDate, setCurrentMonthDate] = useState(new Date(displayDateObj.getFullYear(), displayDateObj.getMonth(), 1));
+            const year = currentMonthDate.getFullYear();
+            const month = currentMonthDate.getMonth();
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const days = [];
+            for(let i=0; i<firstDay; i++) days.push(null);
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                days.push({ day: i, dateStr });
+            }
+
+            const prevMonth = () => setCurrentMonthDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setCurrentMonthDate(new Date(year, month + 1, 1));
+
+            const log = logs[viewDate] || {};
+            const prog = getProgress(viewDate);
+
+            // Sectioned Tasks mapping
+            const bodyTasks = ['diet1', 'diet2', 'water', 'squats', 'stretch', 'muscle', 'poop'];
+            const mindTasks = ['reading', 'skill', 'review', 'strategy', 'gratitude'];
+            const spiritTasks = ['devotion', 'verse', 'healing'];
+
+            const renderTaskGroup = (title, taskKeys, progressPercent, colorTheme) => {
+                const colorMap = {
+                    rose: 'text-rose border-rose/30 bg-rose/10',
+                    violet: 'text-violet2 border-violet2/30 bg-violet2/10',
+                    cyan: 'text-cyan border-cyan/30 bg-cyan/10'
+                };
+                const baseColor = colorMap[colorTheme];
+
+                // 篩選出「有完成」或「有填寫」的項目 (純展示模式)
+                const completedKeys = taskKeys.filter(key => {
+                    if (key === 'diet1') return (log.m1_protein > 0 || log.m1_fiber > 0);
+                    if (key === 'diet2') return (log.m2_protein > 0 || log.m2_fiber > 0);
+                    if (key === 'water') return ((log.water || 0) > 0);
+                    
+                    const isTextTask = (TASKS[key] && typeof TASKS[key].xp === 'string') || typeof log[key] === 'string';
+                    if (isTextTask) return (log[key] && log[key].trim() !== '');
+                    return !!log[key];
+                });
+
+                if (completedKeys.length === 0) {
+                    return (
+                        <div className="mb-5 last:mb-0">
+                            <div className="flex items-center justify-between mb-2.5 px-1 border-b border-white/10 pb-2">
+                                <div className="text-[12px] font-black tracking-widest text-white">{title}</div>
+                                <div className={`text-[12px] font-mono font-black ${colorTheme === 'rose' ? 'text-rose' : colorTheme === 'violet' ? 'text-violet2' : 'text-cyan'}`}>{progressPercent}%</div>
+                            </div>
+                            <div className="text-[11px] text-slate-500 italic px-2 py-1">此區塊尚無紀錄 No records yet</div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="mb-5 last:mb-0">
+                        <div className="flex items-center justify-between mb-2.5 px-1 border-b border-white/10 pb-2">
+                            <div className="text-[12px] font-black tracking-widest text-white">{title}</div>
+                            <div className={`text-[12px] font-mono font-black ${colorTheme === 'rose' ? 'text-rose' : colorTheme === 'violet' ? 'text-violet2' : 'text-cyan'}`}>{progressPercent}%</div>
+                        </div>
+                        <div className="space-y-2">
+                            {completedKeys.map(key => {
+                                if (key === 'diet1' || key === 'diet2') {
+                                    const isM1 = key === 'diet1';
+                                    const protein = isM1 ? (log.m1_protein||0) : (log.m2_protein||0);
+                                    const fiber = isM1 ? (log.m1_fiber||0) : (log.m2_fiber||0);
+                                    return (
+                                        <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${baseColor}`}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="ms text-[18px] fill">restaurant</span>
+                                                <span className="text-[13px] font-bold">{isM1 ? '第一餐 Meal 1' : '第二餐 Meal 2'}</span>
+                                            </div>
+                                            <span className="text-[11px] font-mono font-semibold">蛋:{protein} 纖:{fiber}</span>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${baseColor}`}>
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <span className="ms text-[18px] fill">check_circle</span>
+                                            <span className="text-[13px] font-bold whitespace-nowrap">{TASK_NAMES[key]}</span>
+                                        </div>
+                                        {key === 'water' ? (
+                                            <span className="text-[11px] font-mono shrink-0 ml-2">{log.water || 0} ml</span>
+                                        ) : typeof log[key] === 'string' ? (
+                                            <span className="text-[11px] font-semibold truncate max-w-[120px] ml-2 opacity-80">{log[key]}</span>
+                                        ) : (
+                                            <span className="text-[11px] font-semibold shrink-0 ml-2">已完成</span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="flex flex-col flex-1 animate-fadeIn">
+                    <TopDateBar />
+                    <header className="px-4 pb-1 relative z-10">
+                        <div className="text-[11px] tracking-[0.22em] uppercase font-extrabold text-cyan">Evolution History</div>
+                        <div className="mt-0.5 text-[20px] font-black text-white">日曆回顧</div>
+                    </header>
+
+                    <main className="px-4 pb-safe flex-1 relative z-10 overflow-y-auto no-scrollbar">
+                        
+                        <div className="glass rounded-2xl p-4 shadow-glass mt-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <button onClick={prevMonth} className="tap44 glass2 border border-white/10 rounded-full w-10 h-10 flex items-center justify-center active:scale-95 text-slate-300">
+                                    <span className="ms text-[18px]">chevron_left</span>
+                                </button>
+                                <div className="text-[15px] font-black text-white tracking-widest">{year} / {String(month + 1).padStart(2, '0')}</div>
+                                <button onClick={nextMonth} className="tap44 glass2 border border-white/10 rounded-full w-10 h-10 flex items-center justify-center active:scale-95 text-slate-300">
+                                    <span className="ms text-[18px]">chevron_right</span>
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-7 gap-1.5 text-center mb-2">
+                                {['日','一','二','三','四','五','六'].map((d,i) => (
+                                    <div key={i} className="text-[11px] text-slate-400 font-extrabold py-1">{d}</div>
+                                ))}
+                                
+                                {days.map((d, i) => {
+                                    if (!d) return <div key={`empty-${i}`}></div>;
+                                    
+                                    const dProg = getProgress(d.dateStr).overall;
+                                    const isFuture = d.dateStr > todayStr;
+                                    const isSelected = d.dateStr === viewDate;
+                                    const isCurrentToday = d.dateStr === todayStr;
+                                    
+                                    let bgClass = "bg-transparent text-slate-300 hover:bg-white/5 border border-transparent";
+                                    if (isSelected) bgClass = "bg-gradient-to-br from-violet via-violet2 to-cyan text-white font-black shadow-glow border-white/20";
+                                    else if (dProg >= 70) bgClass = "bg-white/10 text-lime border-lime/30 font-bold";
+                                    else if (dProg > 0) bgClass = "bg-white/5 text-gold border-gold/20 font-bold";
+                                    else if (isFuture) bgClass = "opacity-20 pointer-events-none text-slate-600";
+
+                                    return (
+                                        <div key={i} onClick={() => !isFuture && setViewDate(d.dateStr)}
+                                             className={`aspect-square rounded-full flex flex-col items-center justify-center relative cursor-pointer transition-all active:scale-90 ${bgClass} ${isCurrentToday && !isSelected ? 'ring-2 ring-cyan/50 ring-offset-1 ring-offset-ink' : ''}`}>
+                                            <span className="text-[13px]">{d.day}</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            
+                            <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-lime border border-lime/50"></span> 70%+</div>
+                                <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gold border border-gold/50"></span> 部分</div>
+                            </div>
+                        </div>
+
+                        {/* Direct Summary (Read-only view) */}
+                        <div className="mt-4 glass2 rounded-2xl p-5 border border-white/10 shadow-glass animate-slideUp">
+                            <div className="flex justify-between items-end mb-6">
+                                <div>
+                                    <div className="text-[11px] tracking-widest uppercase text-slate-400 font-extrabold">Summary</div>
+                                    <div className="text-[15px] font-black text-white mt-0.5">{viewDate} <span className="text-[12px] text-slate-400 font-semibold ml-1">摘要</span></div>
+                                </div>
+                                <span className="chip"><span className="ms fill text-gold">stars</span><span>總達成 {prog.overall}%</span></span>
+                            </div>
+
+                            {/* Sectioned Task Groups (Filtered to only show done) */}
+                            {renderTaskGroup('身體 Body', bodyTasks, prog.body, 'rose')}
+                            {renderTaskGroup('心智 Mind', mindTasks, prog.mind, 'violet')}
+                            {renderTaskGroup('靈修 Spirit', spiritTasks, prog.spirit, 'cyan')}
+
+                            {/* 前往補登紀錄按鈕 */}
+                            {viewDate !== activeDate && (
+                                <button onClick={() => { setActiveDate(viewDate); navigate('/'); }} className="mt-6 w-full tap44 rounded-xl font-black text-white bg-gradient-to-r from-violet via-violet2 to-cyan shadow-glow active:scale-95 transition-transform text-[14px] flex items-center justify-center gap-2">
+                                    <span className="ms text-[18px]">edit_calendar</span>
+                                    前往 {viewDate} 補登紀錄 
+                                </button>
+                            )}
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        // --- App Wrapper ---
+        const App = () => {
+            return (
+                <ErrorBoundary>
+                    <AppProvider>
+                        <MemoryRouter>
+                            <Routes>
+                                <Route path="/" element={<DashboardPage />} />
+                                <Route path="/body" element={<BodyPage />} />
+                                <Route path="/mind" element={<MindPage />} />
+                                <Route path="/calendar" element={<CalendarPage />} />
+                            </Routes>
+                            <BottomNav />
+                        </MemoryRouter>
+                    </AppProvider>
+                </ErrorBoundary>
+            );
+        };
+
+        const rootElement = document.getElementById('root');
+        if (ReactDOM.createRoot) {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(<App />);
+        } else {
+            ReactDOM.render(<App />, rootElement);
+        }
+    </script>
+</body>
+</html>
