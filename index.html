@@ -216,10 +216,10 @@
                 super(props);
                 this.state = { hasError: false };
             }
-            static getDerivedStateFromError() { return { hasError: true }; }
+            static getDerivedStateFromError(error) { return { hasError: true }; }
             render() {
                 if (this.state.hasError) {
-                    return <div className="p-10 text-white text-center"><h1 className="text-rose font-bold mb-4">系統重整中</h1><button onClick={()=>window.location.reload()} className="px-6 py-2 bg-white/10 rounded-xl">點擊刷新</button></div>;
+                    return <div className="p-10 text-white text-center flex flex-col items-center justify-center min-h-screen"><span className="ms text-[48px] text-rose mb-4">warning</span><h1 className="text-white font-bold mb-4">系統重整中</h1><button onClick={()=>window.location.reload()} className="px-6 py-3 bg-white/10 rounded-xl font-bold active:scale-95 transition-transform">點擊刷新</button></div>;
                 }
                 return this.props.children;
             }
@@ -244,16 +244,17 @@
             const [streak, setStreak] = useState(savedState.streak || 0);
             const [logs, setLogs] = useState(savedState.logs || {});
             
-            // ⚠️ 計時器獨立，不存入 localStorage，防止干擾文字存檔
-            const [timers, setTimers] = useState({});
+            // 全局計時器狀態 (跨頁面切換保留時間)
+            const [timers, setTimers] = useState(savedState.timers || {});
             
             const [toasts, setToasts] = useState([]);
             const [activeDate, setActiveDate] = useState(getTodayString());
             const [sttLang, setSttLang] = useState('AUTO'); 
             const [surpriseQuest, setSurpriseQuest] = useState(null);
 
-            const stateRef = useRef({ profile, xp, streak, logs });
+            const stateRef = useRef({ profile, xp, streak, logs, timers });
 
+            // 確保當天有紀錄結構
             useEffect(() => {
                 if (!logs[activeDate]) {
                     setLogs(prev => ({
@@ -268,18 +269,18 @@
                 }
             }, [activeDate, logs]);
 
-            // ✅ 核心修復 1：同步寫入，不再使用 setTimeout，確保按鍵即存檔！
+            // ✅ 核心修復：即時存檔，移除所有 debounce 延遲
             useEffect(() => {
-                const stateToSave = { profile, xp, streak, logs };
+                const stateToSave = { profile, xp, streak, logs, timers };
                 stateRef.current = stateToSave;
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
                 } catch (e) {
                     console.error("Local Storage 儲存失敗", e);
                 }
-            }, [profile, xp, streak, logs]);
+            }, [profile, xp, streak, logs, timers]);
 
-            // ✅ 核心修復 2：防殺後台，滑掉瞬間最後一博
+            // 防殺後台保護：當 App 被縮小、隱藏、準備關閉時，強迫同步 stateRef 到 localStorage
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -353,6 +354,7 @@
                 });
             }, [triggerToast]);
 
+            // 真正的全局計時執行緒
             const timersRef = useRef(timers);
             const updateTaskRef = useRef(updateTask);
 
@@ -424,6 +426,7 @@
                 };
             }, [logs]);
 
+            // Streak 演算法：身、心、靈「皆」有進度才算數
             useEffect(() => {
                 let currentStreak = 0;
                 let graceUsed = false;
@@ -477,6 +480,7 @@
 
                         {children}
                         
+                        {/* XP Toasts */}
                         {toasts.map(toast => (
                             <div key={toast.id} className="fixed left-1/2 top-[44%] z-[9999] pointer-events-none flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 animate-popMove font-display drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]">
                                 <div className={`text-[36px] font-black ${toast.amount > 0 ? 'text-lime' : 'text-rose'}`}>
@@ -488,6 +492,7 @@
                             </div>
                         ))}
 
+                        {/* Surprise Quest Modal */}
                         {surpriseQuest && (
                             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSurpriseQuest(null)}></div>
@@ -675,16 +680,19 @@
             );
         };
 
-        // ✅ 徹底修復：不使用延遲的本機 State，完全依賴即時同步寫入
+        // ✅ 語音輸入元件：修復函數型賦值造成的崩潰，保證純文字更新
         const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
             const { sttLang, setSttLang } = useAppContext();
             const [isRecording, setIsRecording] = useState(false);
             const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
             
             const recognitionRef = useRef(null);
-            const onChangeRef = useRef(onChange);
+            // 透過 valueRef 來精準抓取當前的字串，避免傳遞 function 給 onChange
+            const valueRef = useRef(value || '');
 
-            useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+            useEffect(() => {
+                valueRef.current = value || '';
+            }, [value]);
 
             useEffect(() => {
                 if ('webkitSpeechRecognition' in window) {
@@ -702,8 +710,10 @@
                             if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                         }
                         if (finalTranscript) {
-                            // 使用最新值來拼接
-                            onChangeRef.current((prevVal) => (prevVal ? prevVal + ' ' : '') + finalTranscript.trim());
+                            // 使用 valueRef 取得最新字串拼接，傳遞純字串回上層
+                            const currentVal = valueRef.current;
+                            const newVal = (currentVal ? currentVal + ' ' : '') + finalTranscript.trim();
+                            onChange(newVal); 
                         }
                     };
                     
@@ -718,7 +728,7 @@
                         try { recognitionRef.current.abort(); } catch(e){}
                     }
                 };
-            }, [sttLang]); 
+            }, [sttLang, onChange]); 
 
             const toggleRecord = () => {
                 if (!recognitionRef.current) {
@@ -753,7 +763,6 @@
                                 <span className="ms fill text-[22px]">{isRecording ? 'mic' : 'mic_none'}</span>
                             </button>
                         </div>
-                        {/* ✅ 直接綁定 value，零延遲打字寫入 */}
                         <textarea 
                             value={value || ''} 
                             onChange={(e) => onChange(e.target.value)}
@@ -766,7 +775,6 @@
                         </div>
                     </section>
 
-                    {/* Language Bottom Sheet */}
                     {isLangSheetOpen && (
                         <div className="fixed inset-0 z-[300]">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsLangSheetOpen(false)}></div>
@@ -809,7 +817,6 @@
                             <div className="text-[11px] text-slate-400 font-semibold">{isDone ? `已紀錄 +${TASKS[taskKey].xp}` : '填寫即可得分'}</div>
                         </div>
                     </div>
-                    {/* ✅ 直接綁定 value，零延遲打字寫入 */}
                     <textarea 
                         value={value || ''} 
                         onChange={(e) => onChange(e.target.value)}
@@ -1557,3 +1564,5 @@
     </script>
 </body>
 </html>
+
+
