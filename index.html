@@ -6,6 +6,10 @@
     <meta name="theme-color" content="#05060A"/>
     <title>ATE Mobile V4 - Evolution</title>
 
+    <!-- iOS PWA 防護標籤 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -222,7 +226,8 @@
         }
 
         const AppProvider = ({ children }) => {
-            const STORAGE_KEY = 'ATE_APP_DATA_V20';
+            // 系統統一儲存鍵
+            const STORAGE_KEY = 'ATE_APP_DATA_PROD';
 
             const loadInitialState = () => {
                 try {
@@ -239,7 +244,8 @@
             const [xp, setXp] = useState(savedState.xp || 0); 
             const [streak, setStreak] = useState(savedState.streak || 0);
             const [logs, setLogs] = useState(savedState.logs || {});
-            // ✅ 全局計時器狀態 (跨頁面切換保留時間)
+            
+            // 全局計時器狀態 (跨頁面切換保留時間)
             const [timers, setTimers] = useState(savedState.timers || {});
             
             const [toasts, setToasts] = useState([]);
@@ -249,6 +255,7 @@
 
             const stateRef = useRef({ profile, xp, streak, logs, timers });
 
+            // 確保當天有紀錄結構
             useEffect(() => {
                 if (!logs[activeDate]) {
                     setLogs(prev => ({
@@ -263,6 +270,7 @@
                 }
             }, [activeDate, logs]);
 
+            // 即時同步狀態供存檔使用
             useEffect(() => {
                 stateRef.current = { profile, xp, streak, logs, timers };
                 try {
@@ -272,6 +280,7 @@
                 }
             }, [profile, xp, streak, logs, timers]);
 
+            // 強勢防殺後台：當螢幕隱藏 (如滑掉 App, 回主畫面) 時立刻強迫存檔
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -279,7 +288,14 @@
                     }
                 };
                 document.addEventListener("visibilitychange", handleVisibilityChange);
-                return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+                window.addEventListener("pagehide", handleVisibilityChange);
+                window.addEventListener("beforeunload", handleVisibilityChange);
+                
+                return () => {
+                    document.removeEventListener("visibilitychange", handleVisibilityChange);
+                    window.removeEventListener("pagehide", handleVisibilityChange);
+                    window.removeEventListener("beforeunload", handleVisibilityChange);
+                };
             }, []);
 
             const levelInfo = useMemo(() => {
@@ -340,7 +356,7 @@
                 });
             }, [triggerToast]);
 
-            // ✅ 真正的全局計時執行緒 (Global Interval)
+            // 真正的全局計時執行緒 (即使跳轉分頁也不會中斷)
             const timersRef = useRef(timers);
             const updateTaskRef = useRef(updateTask);
 
@@ -360,7 +376,6 @@
                         } else if (t.isRunning && t.timeLeft <= 0) {
                             nextTimers[key] = { ...t, isRunning: false, timeLeft: 0 };
                             hasChanges = true;
-                            // 自動打勾完成任務！
                             const [d, tk] = key.split('|');
                             if (d && tk) {
                                 updateTaskRef.current(d, tk, true);
@@ -413,7 +428,7 @@
                 };
             }, [logs]);
 
-            // ✅ 修正版 Streak 演算法：身、心、靈「皆」有進度才算數！
+            // 修正版 Streak 演算法：身、心、靈「皆」有進度才算數！
             useEffect(() => {
                 let currentStreak = 0;
                 let graceUsed = false;
@@ -426,8 +441,6 @@
                     const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth()+1).padStart(2,'0')}-${String(checkDate.getDate()).padStart(2,'0')}`;
                     
                     const prog = getProgress(dateStr);
-                    
-                    // 核心修改：三者都大於 0 才判定這天「有真正進化」
                     const isCompleted = prog.bodyCount > 0 && prog.mindCount > 0 && prog.spiritCount > 0;
                     
                     if (isCompleted) { 
@@ -575,7 +588,7 @@
             );
         };
 
-        // ✅ 全局計時器卡片元件 (無狀態遺失)
+        // ✅ 全局防誤觸計時器卡片元件 (無狀態遺失)
         const InlineTaskCard = ({ icon, title, taskKey, themeColor = 'violet2' }) => {
             const { activeDate, logs, updateTask, timers, setTimers } = useAppContext();
             const log = logs[activeDate] || {};
@@ -861,6 +874,46 @@
 
             const currentVerse = useMemo(() => getVerseForDate(activeDate), [activeDate, getVerseForDate]);
 
+            // 匯出/還原 功能
+            const handleExport = () => {
+                try {
+                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD');
+                    if (!dataStr) return alert("目前沒有可匯出的數據 No data to export");
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ATE_Backup_${getTodayString()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch(e) {
+                    alert("匯出失敗 Export failed");
+                }
+            };
+
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data && typeof data === 'object') {
+                            localStorage.setItem('ATE_APP_DATA_PROD', JSON.stringify(data));
+                            alert('數據還原成功！Data Restored Successfully!');
+                            window.location.reload();
+                        } else {
+                            alert('無效的備份檔案 Invalid format');
+                        }
+                    } catch(err) {
+                        alert('無效的備份檔案 Invalid backup file');
+                    }
+                };
+                reader.readAsText(file);
+            };
+
             return (
                 <div className="flex flex-col flex-1 animate-fadeIn">
                     <TopDateBar />
@@ -969,7 +1022,7 @@
                         </section>
                     </main>
 
-                    {/* Centered Profile Edit Modal (Fixed Position) */}
+                    {/* Centered Profile Edit Modal + Backup/Restore UI */}
                     {isProfileOpen && (
                         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsProfileOpen(false)}></div>
@@ -990,7 +1043,7 @@
                                             </div>
                                         </button>
                                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像 Upload Image</div>
+                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像</div>
                                         <div className="flex gap-2.5 justify-center w-full">
                                             {['Felix', 'Aneka', 'Bottts', 'Adventurer'].map(seed => (
                                                 <div key={seed} onClick={() => setTempAvatar(`https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=D4AF37`)} className="w-10 h-10 rounded-full border border-white/10 cursor-pointer overflow-hidden hover:border-gold transition-colors bg-white/5">
@@ -1004,15 +1057,34 @@
                                         <label className="text-[10px] text-slate-400 font-extrabold mb-1 block">顯示名稱 Display Name</label>
                                         <input type="text" value={tempName} onChange={e => setTempName(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 text-[14px] font-bold"/>
                                     </div>
+
+                                    {/* 備份與還原系統 (解決 iOS Home Screen 本地檔案清空問題) */}
+                                    <div className="mt-4 pt-4 border-t border-white/10">
+                                        <div className="text-[10px] text-slate-400 font-extrabold mb-2 uppercase tracking-widest flex items-center justify-between">
+                                            <span>防遺失備份 Data Backup</span>
+                                            <span className="text-amber-500">※ iOS 本地必備</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button onClick={handleExport} className="tap44 glass2 border border-white/10 rounded-xl text-[12px] font-bold text-slate-200 active:scale-95 transition-transform flex items-center justify-center gap-1">
+                                                <span className="ms text-[16px]">download</span> 匯出數據
+                                            </button>
+                                            <div className="relative">
+                                                <input type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10" />
+                                                <button className="w-full tap44 glass2 border border-white/10 rounded-xl text-[12px] font-bold text-slate-200 active:scale-95 transition-transform flex items-center justify-center gap-1">
+                                                    <span className="ms text-[16px]">upload</span> 還原數據
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     
                                     <div className="grid grid-cols-2 gap-3 mt-2">
-                                        <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
+                                        <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">儲存設定 Save</button>
                                         <button onClick={() => { 
                                             if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
-                                                localStorage.removeItem('ATE_APP_DATA_V20');
+                                                localStorage.removeItem('ATE_APP_DATA_PROD');
                                                 window.location.reload();
                                             }
-                                        }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">重置數據 Reset</button>
+                                        }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">系統重置 Reset</button>
                                     </div>
                                 </div>
                             </div>
@@ -1162,9 +1234,9 @@
                             <div className="text-[10px] text-slate-400 font-extrabold tracking-widest">TAP TO DONE</div>
                         </div>
 
-                        <InlineTaskCard key={`squats-${activeDate}`} taskKey="squats" title="每日深蹲 Daily Squats" icon="fitness_center" themeColor="rose" />
-                        <InlineTaskCard key={`stretch-${activeDate}`} taskKey="stretch" title="每日拉筋 Stretching" icon="accessibility" themeColor="rose" />
-                        <InlineTaskCard key={`muscle-${activeDate}`} taskKey="muscle" title="肌肉訓練 Workout" icon="sports_gymnastics" themeColor="rose" />
+                        <InlineTaskCard key="squats" taskKey="squats" title="每日深蹲 Daily Squats" icon="fitness_center" themeColor="rose" />
+                        <InlineTaskCard key="stretch" taskKey="stretch" title="每日拉筋 Stretching" icon="accessibility" themeColor="rose" />
+                        <InlineTaskCard key="muscle" taskKey="muscle" title="肌肉訓練 Workout" icon="sports_gymnastics" themeColor="rose" />
 
                         <section className="glass rounded-2xl p-4 shadow-glass flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1222,11 +1294,11 @@
                     <main className="px-4 pb-safe flex-1 relative z-10 overflow-y-auto no-scrollbar">
                         {tab === 'mind' ? (
                             <div key="mind-tab" className="space-y-3 animate-fadeIn">
-                                <InlineTaskCard key={`reading-${activeDate}`} taskKey="reading" title="深度閱讀 Deep Reading" icon="menu_book" themeColor="violet2" />
-                                <InlineTaskCard key={`skill-${activeDate}`} taskKey="skill" title="新技能學習 Skill Learning" icon="lightbulb" themeColor="violet2" />
+                                <InlineTaskCard key="reading" taskKey="reading" title="深度閱讀 Deep Reading" icon="menu_book" themeColor="violet2" />
+                                <InlineTaskCard key="skill" taskKey="skill" title="新技能學習 Skill Learning" icon="lightbulb" themeColor="violet2" />
                                 
                                 <VoiceTextarea 
-                                    key={`review-${activeDate}`}
+                                    key="review"
                                     taskKey="review" icon="rate_review"
                                     value={log.review || ''} onChange={(val) => updateTask(activeDate, 'review', val)}
                                     title="今日復盤 Daily Review"
@@ -1234,7 +1306,7 @@
                                     isDone={!!(log.review && log.review.trim())} />
 
                                 <VoiceTextarea 
-                                    key={`strategy-${activeDate}`}
+                                    key="strategy"
                                     taskKey="strategy" icon="note_alt"
                                     value={log.strategy || ''} onChange={(val) => updateTask(activeDate, 'strategy', val)}
                                     title="策略筆記 Strategy Notes"
@@ -1242,7 +1314,7 @@
                                     isDone={!!(log.strategy && log.strategy.trim())} />
 
                                 <SimpleTextarea 
-                                    key={`gratitude-${activeDate}`}
+                                    key="gratitude"
                                     taskKey="gratitude"
                                     value={log.gratitude || ''} onChange={(val) => updateTask(activeDate, 'gratitude', val)}
                                     title="感恩日記 Gratitude Journal" icon="favorite" themeColor="violet2"
@@ -1251,10 +1323,10 @@
                             </div>
                         ) : (
                             <div key="spirit-tab" className="space-y-3 animate-fadeIn">
-                                <InlineTaskCard key={`devotion-${activeDate}`} taskKey="devotion" title="靜心靈修 Devotion" icon="self_improvement" themeColor="cyan" />
+                                <InlineTaskCard key="devotion" taskKey="devotion" title="靜心靈修 Devotion" icon="self_improvement" themeColor="cyan" />
 
                                 <SimpleTextarea 
-                                    key={`verse-${activeDate}`}
+                                    key="verse"
                                     taskKey="verse"
                                     value={log.verse || ''} onChange={(val) => updateTask(activeDate, 'verse', val)}
                                     title="經文與領受 Bible Verse" icon="auto_stories" themeColor="cyan"
@@ -1262,7 +1334,7 @@
                                     isDone={!!(log.verse && log.verse.trim())} />
                                     
                                 <SimpleTextarea 
-                                    key={`healing-${activeDate}`}
+                                    key="healing"
                                     taskKey="healing"
                                     value={log.healing || ''} onChange={(val) => updateTask(activeDate, 'healing', val)}
                                     title="自我啟發與修復 Self-Healing" icon="flare" themeColor="cyan"
