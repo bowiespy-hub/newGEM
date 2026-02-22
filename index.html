@@ -226,8 +226,7 @@
         }
 
         const AppProvider = ({ children }) => {
-            // 系統統一儲存鍵
-            const STORAGE_KEY = 'ATE_APP_DATA_PROD';
+            const STORAGE_KEY = 'ATE_APP_DATA_PROD_V2';
 
             const loadInitialState = () => {
                 try {
@@ -270,17 +269,22 @@
                 }
             }, [activeDate, logs]);
 
-            // 即時同步狀態供存檔使用
+            // ✅ 修復：將狀態即時寫入 ref，並加入底層防抖動存檔 (不影響 React 效能)
             useEffect(() => {
                 stateRef.current = { profile, xp, streak, logs, timers };
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
-                } catch (e) {
-                    console.error("Local Storage 儲存失敗", e);
-                }
+                
+                const timer = setTimeout(() => {
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
+                    } catch (e) {
+                        console.error("Local Storage 儲存失敗", e);
+                    }
+                }, 400); // 延遲 400ms 寫入磁碟
+
+                return () => clearTimeout(timer);
             }, [profile, xp, streak, logs, timers]);
 
-            // 強勢防殺後台：當螢幕隱藏 (如滑掉 App, 回主畫面) 時立刻強迫存檔
+            // ✅ 防殺後台保護：當 App 被縮小、隱藏、準備關閉時，強迫同步 stateRef 到 localStorage
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -289,12 +293,10 @@
                 };
                 document.addEventListener("visibilitychange", handleVisibilityChange);
                 window.addEventListener("pagehide", handleVisibilityChange);
-                window.addEventListener("beforeunload", handleVisibilityChange);
                 
                 return () => {
                     document.removeEventListener("visibilitychange", handleVisibilityChange);
                     window.removeEventListener("pagehide", handleVisibilityChange);
-                    window.removeEventListener("beforeunload", handleVisibilityChange);
                 };
             }, []);
 
@@ -428,7 +430,7 @@
                 };
             }, [logs]);
 
-            // 修正版 Streak 演算法：身、心、靈「皆」有進度才算數！
+            // Streak 演算法：身、心、靈「皆」有進度才算數！
             useEffect(() => {
                 let currentStreak = 0;
                 let graceUsed = false;
@@ -588,7 +590,7 @@
             );
         };
 
-        // ✅ 全局防誤觸計時器卡片元件 (無狀態遺失)
+        // ✅ 全局防誤觸計時器卡片元件
         const InlineTaskCard = ({ icon, title, taskKey, themeColor = 'violet2' }) => {
             const { activeDate, logs, updateTask, timers, setTimers } = useAppContext();
             const log = logs[activeDate] || {};
@@ -683,28 +685,18 @@
             );
         };
 
+        // ✅ 強制寫入的語音文字組件
         const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
             const { sttLang, setSttLang } = useAppContext();
             const [isRecording, setIsRecording] = useState(false);
             const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
             
             const recognitionRef = useRef(null);
-            const valueRef = useRef(value);
-            const onChangeRef = useRef(onChange);
-            const [localVal, setLocalVal] = useState(value || '');
 
-            useEffect(() => { valueRef.current = value; }, [value]);
-            useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
-            useEffect(() => { setLocalVal(value || ''); }, [value]);
-
-            useEffect(() => {
-                const t = setTimeout(() => {
-                    if (localVal !== valueRef.current) {
-                        onChangeRef.current(localVal);
-                    }
-                }, 800);
-                return () => clearTimeout(t);
-            }, [localVal]);
+            // 直接將 input 值綁定回原本的 onChange，不使用 localVal 緩存，解決存檔落差問題
+            const handleChange = (e) => {
+                onChange(e.target.value);
+            };
 
             useEffect(() => {
                 if ('webkitSpeechRecognition' in window) {
@@ -722,7 +714,7 @@
                             if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                         }
                         if (finalTranscript) {
-                            setLocalVal(prev => (prev ? prev + ' ' : '') + finalTranscript.trim());
+                            onChange((value ? value + ' ' : '') + finalTranscript.trim());
                         }
                     };
                     
@@ -737,7 +729,8 @@
                         try { recognitionRef.current.abort(); } catch(e){}
                     }
                 };
-            }, [sttLang]); 
+            // 讓 effect 依賴 value 確保能在 onresult 拿到最新字串拼接
+            }, [sttLang, value, onChange]); 
 
             const toggleRecord = () => {
                 if (!recognitionRef.current) {
@@ -773,9 +766,8 @@
                             </button>
                         </div>
                         <textarea 
-                            value={localVal} 
-                            onChange={e => setLocalVal(e.target.value)}
-                            onBlur={() => onChangeRef.current(localVal)}
+                            value={value || ''} 
+                            onChange={handleChange}
                             className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                             placeholder={placeholder}></textarea>
                         
@@ -819,21 +811,6 @@
             const colorClass = themeColor === 'cyan' ? 'text-cyan border-cyan/40 bg-cyan/5' : 'text-violet2 border-violet2/40 bg-violet2/5';
             const iconColor = themeColor === 'cyan' ? 'text-cyan' : 'text-violet2';
 
-            const [localVal, setLocalVal] = useState(value || '');
-            const onChangeRef = useRef(onChange);
-
-            useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
-            useEffect(() => { setLocalVal(value || ''); }, [value]);
-
-            useEffect(() => {
-                const t = setTimeout(() => {
-                    if (localVal !== valueRef.current) {
-                        onChangeRef.current(localVal);
-                    }
-                }, 800);
-                return () => clearTimeout(t);
-            }, [localVal]);
-
             return (
                 <section className={`glass rounded-2xl p-4 shadow-glass transition-colors ${isDone ? colorClass : ''}`}>
                     <div className="flex items-center gap-2">
@@ -844,7 +821,8 @@
                         </div>
                     </div>
                     <textarea 
-                        value={localVal} onChange={e => setLocalVal(e.target.value)} onBlur={() => onChangeRef.current(localVal)}
+                        value={value || ''} 
+                        onChange={e => onChange(e.target.value)}
                         className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                         placeholder={placeholder}></textarea>
                 </section>
@@ -1043,7 +1021,7 @@
                                             </div>
                                         </button>
                                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像</div>
+                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像 Upload Image</div>
                                         <div className="flex gap-2.5 justify-center w-full">
                                             {['Felix', 'Aneka', 'Bottts', 'Adventurer'].map(seed => (
                                                 <div key={seed} onClick={() => setTempAvatar(`https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=D4AF37`)} className="w-10 h-10 rounded-full border border-white/10 cursor-pointer overflow-hidden hover:border-gold transition-colors bg-white/5">
@@ -1078,7 +1056,7 @@
                                     </div>
                                     
                                     <div className="grid grid-cols-2 gap-3 mt-2">
-                                        <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">儲存設定 Save</button>
+                                        <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
                                         <button onClick={() => { 
                                             if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
                                                 localStorage.removeItem('ATE_APP_DATA_PROD');
@@ -1234,9 +1212,9 @@
                             <div className="text-[10px] text-slate-400 font-extrabold tracking-widest">TAP TO DONE</div>
                         </div>
 
-                        <InlineTaskCard key="squats" taskKey="squats" title="每日深蹲 Daily Squats" icon="fitness_center" themeColor="rose" />
-                        <InlineTaskCard key="stretch" taskKey="stretch" title="每日拉筋 Stretching" icon="accessibility" themeColor="rose" />
-                        <InlineTaskCard key="muscle" taskKey="muscle" title="肌肉訓練 Workout" icon="sports_gymnastics" themeColor="rose" />
+                        <InlineTaskCard key={`squats-${activeDate}`} taskKey="squats" title="每日深蹲 Daily Squats" icon="fitness_center" themeColor="rose" />
+                        <InlineTaskCard key={`stretch-${activeDate}`} taskKey="stretch" title="每日拉筋 Stretching" icon="accessibility" themeColor="rose" />
+                        <InlineTaskCard key={`muscle-${activeDate}`} taskKey="muscle" title="肌肉訓練 Workout" icon="sports_gymnastics" themeColor="rose" />
 
                         <section className="glass rounded-2xl p-4 shadow-glass flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1294,11 +1272,11 @@
                     <main className="px-4 pb-safe flex-1 relative z-10 overflow-y-auto no-scrollbar">
                         {tab === 'mind' ? (
                             <div key="mind-tab" className="space-y-3 animate-fadeIn">
-                                <InlineTaskCard key="reading" taskKey="reading" title="深度閱讀 Deep Reading" icon="menu_book" themeColor="violet2" />
-                                <InlineTaskCard key="skill" taskKey="skill" title="新技能學習 Skill Learning" icon="lightbulb" themeColor="violet2" />
+                                <InlineTaskCard key={`reading-${activeDate}`} taskKey="reading" title="深度閱讀 Deep Reading" icon="menu_book" themeColor="violet2" />
+                                <InlineTaskCard key={`skill-${activeDate}`} taskKey="skill" title="新技能學習 Skill Learning" icon="lightbulb" themeColor="violet2" />
                                 
                                 <VoiceTextarea 
-                                    key="review"
+                                    key={`review-${activeDate}`}
                                     taskKey="review" icon="rate_review"
                                     value={log.review || ''} onChange={(val) => updateTask(activeDate, 'review', val)}
                                     title="今日復盤 Daily Review"
@@ -1306,7 +1284,7 @@
                                     isDone={!!(log.review && log.review.trim())} />
 
                                 <VoiceTextarea 
-                                    key="strategy"
+                                    key={`strategy-${activeDate}`}
                                     taskKey="strategy" icon="note_alt"
                                     value={log.strategy || ''} onChange={(val) => updateTask(activeDate, 'strategy', val)}
                                     title="策略筆記 Strategy Notes"
@@ -1314,7 +1292,7 @@
                                     isDone={!!(log.strategy && log.strategy.trim())} />
 
                                 <SimpleTextarea 
-                                    key="gratitude"
+                                    key={`gratitude-${activeDate}`}
                                     taskKey="gratitude"
                                     value={log.gratitude || ''} onChange={(val) => updateTask(activeDate, 'gratitude', val)}
                                     title="感恩日記 Gratitude Journal" icon="favorite" themeColor="violet2"
@@ -1323,10 +1301,10 @@
                             </div>
                         ) : (
                             <div key="spirit-tab" className="space-y-3 animate-fadeIn">
-                                <InlineTaskCard key="devotion" taskKey="devotion" title="靜心靈修 Devotion" icon="self_improvement" themeColor="cyan" />
+                                <InlineTaskCard key={`devotion-${activeDate}`} taskKey="devotion" title="靜心靈修 Devotion" icon="self_improvement" themeColor="cyan" />
 
                                 <SimpleTextarea 
-                                    key="verse"
+                                    key={`verse-${activeDate}`}
                                     taskKey="verse"
                                     value={log.verse || ''} onChange={(val) => updateTask(activeDate, 'verse', val)}
                                     title="經文與領受 Bible Verse" icon="auto_stories" themeColor="cyan"
@@ -1334,7 +1312,7 @@
                                     isDone={!!(log.verse && log.verse.trim())} />
                                     
                                 <SimpleTextarea 
-                                    key="healing"
+                                    key={`healing-${activeDate}`}
                                     taskKey="healing"
                                     value={log.healing || ''} onChange={(val) => updateTask(activeDate, 'healing', val)}
                                     title="自我啟發與修復 Self-Healing" icon="flare" themeColor="cyan"
