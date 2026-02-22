@@ -226,7 +226,7 @@
         }
 
         const AppProvider = ({ children }) => {
-            const STORAGE_KEY = 'ATE_APP_DATA_PROD_V2';
+            const STORAGE_KEY = 'ATE_APP_DATA_PROD_FINAL';
 
             const loadInitialState = () => {
                 try {
@@ -244,17 +244,16 @@
             const [streak, setStreak] = useState(savedState.streak || 0);
             const [logs, setLogs] = useState(savedState.logs || {});
             
-            // 全局計時器狀態 (跨頁面切換保留時間)
-            const [timers, setTimers] = useState(savedState.timers || {});
+            // ⚠️ 計時器獨立，不存入 localStorage，防止干擾文字存檔
+            const [timers, setTimers] = useState({});
             
             const [toasts, setToasts] = useState([]);
             const [activeDate, setActiveDate] = useState(getTodayString());
             const [sttLang, setSttLang] = useState('AUTO'); 
             const [surpriseQuest, setSurpriseQuest] = useState(null);
 
-            const stateRef = useRef({ profile, xp, streak, logs, timers });
+            const stateRef = useRef({ profile, xp, streak, logs });
 
-            // 確保當天有紀錄結構
             useEffect(() => {
                 if (!logs[activeDate]) {
                     setLogs(prev => ({
@@ -269,22 +268,18 @@
                 }
             }, [activeDate, logs]);
 
-            // ✅ 修復：將狀態即時寫入 ref，並加入底層防抖動存檔 (不影響 React 效能)
+            // ✅ 核心修復 1：同步寫入，不再使用 setTimeout，確保按鍵即存檔！
             useEffect(() => {
-                stateRef.current = { profile, xp, streak, logs, timers };
-                
-                const timer = setTimeout(() => {
-                    try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
-                    } catch (e) {
-                        console.error("Local Storage 儲存失敗", e);
-                    }
-                }, 400); // 延遲 400ms 寫入磁碟
+                const stateToSave = { profile, xp, streak, logs };
+                stateRef.current = stateToSave;
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+                } catch (e) {
+                    console.error("Local Storage 儲存失敗", e);
+                }
+            }, [profile, xp, streak, logs]);
 
-                return () => clearTimeout(timer);
-            }, [profile, xp, streak, logs, timers]);
-
-            // ✅ 防殺後台保護：當 App 被縮小、隱藏、準備關閉時，強迫同步 stateRef 到 localStorage
+            // ✅ 核心修復 2：防殺後台，滑掉瞬間最後一博
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -358,7 +353,6 @@
                 });
             }, [triggerToast]);
 
-            // 真正的全局計時執行緒 (即使跳轉分頁也不會中斷)
             const timersRef = useRef(timers);
             const updateTaskRef = useRef(updateTask);
 
@@ -430,7 +424,6 @@
                 };
             }, [logs]);
 
-            // Streak 演算法：身、心、靈「皆」有進度才算數！
             useEffect(() => {
                 let currentStreak = 0;
                 let graceUsed = false;
@@ -484,7 +477,6 @@
 
                         {children}
                         
-                        {/* XP Toasts */}
                         {toasts.map(toast => (
                             <div key={toast.id} className="fixed left-1/2 top-[44%] z-[9999] pointer-events-none flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 animate-popMove font-display drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]">
                                 <div className={`text-[36px] font-black ${toast.amount > 0 ? 'text-lime' : 'text-rose'}`}>
@@ -496,7 +488,6 @@
                             </div>
                         ))}
 
-                        {/* Surprise Quest Modal */}
                         {surpriseQuest && (
                             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSurpriseQuest(null)}></div>
@@ -590,7 +581,6 @@
             );
         };
 
-        // ✅ 全局防誤觸計時器卡片元件
         const InlineTaskCard = ({ icon, title, taskKey, themeColor = 'violet2' }) => {
             const { activeDate, logs, updateTask, timers, setTimers } = useAppContext();
             const log = logs[activeDate] || {};
@@ -685,18 +675,16 @@
             );
         };
 
-        // ✅ 強制寫入的語音文字組件
+        // ✅ 徹底修復：不使用延遲的本機 State，完全依賴即時同步寫入
         const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
             const { sttLang, setSttLang } = useAppContext();
             const [isRecording, setIsRecording] = useState(false);
             const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
             
             const recognitionRef = useRef(null);
+            const onChangeRef = useRef(onChange);
 
-            // 直接將 input 值綁定回原本的 onChange，不使用 localVal 緩存，解決存檔落差問題
-            const handleChange = (e) => {
-                onChange(e.target.value);
-            };
+            useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
             useEffect(() => {
                 if ('webkitSpeechRecognition' in window) {
@@ -714,7 +702,8 @@
                             if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                         }
                         if (finalTranscript) {
-                            onChange((value ? value + ' ' : '') + finalTranscript.trim());
+                            // 使用最新值來拼接
+                            onChangeRef.current((prevVal) => (prevVal ? prevVal + ' ' : '') + finalTranscript.trim());
                         }
                     };
                     
@@ -729,8 +718,7 @@
                         try { recognitionRef.current.abort(); } catch(e){}
                     }
                 };
-            // 讓 effect 依賴 value 確保能在 onresult 拿到最新字串拼接
-            }, [sttLang, value, onChange]); 
+            }, [sttLang]); 
 
             const toggleRecord = () => {
                 if (!recognitionRef.current) {
@@ -765,9 +753,10 @@
                                 <span className="ms fill text-[22px]">{isRecording ? 'mic' : 'mic_none'}</span>
                             </button>
                         </div>
+                        {/* ✅ 直接綁定 value，零延遲打字寫入 */}
                         <textarea 
                             value={value || ''} 
-                            onChange={handleChange}
+                            onChange={(e) => onChange(e.target.value)}
                             className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                             placeholder={placeholder}></textarea>
                         
@@ -820,9 +809,10 @@
                             <div className="text-[11px] text-slate-400 font-semibold">{isDone ? `已紀錄 +${TASKS[taskKey].xp}` : '填寫即可得分'}</div>
                         </div>
                     </div>
+                    {/* ✅ 直接綁定 value，零延遲打字寫入 */}
                     <textarea 
                         value={value || ''} 
-                        onChange={e => onChange(e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                         placeholder={placeholder}></textarea>
                 </section>
@@ -855,7 +845,7 @@
             // 匯出/還原 功能
             const handleExport = () => {
                 try {
-                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD');
+                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD_FINAL');
                     if (!dataStr) return alert("目前沒有可匯出的數據 No data to export");
                     const blob = new Blob([dataStr], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
@@ -879,7 +869,7 @@
                     try {
                         const data = JSON.parse(event.target.result);
                         if (data && typeof data === 'object') {
-                            localStorage.setItem('ATE_APP_DATA_PROD', JSON.stringify(data));
+                            localStorage.setItem('ATE_APP_DATA_PROD_FINAL', JSON.stringify(data));
                             alert('數據還原成功！Data Restored Successfully!');
                             window.location.reload();
                         } else {
@@ -1036,7 +1026,7 @@
                                         <input type="text" value={tempName} onChange={e => setTempName(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 text-[14px] font-bold"/>
                                     </div>
 
-                                    {/* 備份與還原系統 (解決 iOS Home Screen 本地檔案清空問題) */}
+                                    {/* 備份與還原系統 */}
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <div className="text-[10px] text-slate-400 font-extrabold mb-2 uppercase tracking-widest flex items-center justify-between">
                                             <span>防遺失備份 Data Backup</span>
@@ -1059,7 +1049,7 @@
                                         <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
                                         <button onClick={() => { 
                                             if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
-                                                localStorage.removeItem('ATE_APP_DATA_PROD');
+                                                localStorage.removeItem('ATE_APP_DATA_PROD_FINAL');
                                                 window.location.reload();
                                             }
                                         }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">系統重置 Reset</button>
