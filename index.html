@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <meta name="theme-color" content="#05060A"/>
-    <title>ATE Mobile V4 - Evolution</title>
+    <title>Daily Evolution</title>
 
     <!-- iOS PWA 防護標籤 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -573,8 +573,8 @@
             
             const navItems = [
                 { path: '/', icon: 'dashboard', label: 'Hub' },
-                { path: '/body', icon: 'fitness_center', label: 'Body' },
-                { path: '/mind', icon: 'auto_stories', label: 'Mind' },
+                { path: '/body', icon: 'fitness_center', label: 'Physical' },
+                { path: '/mind', icon: 'auto_stories', label: 'Mental' },
                 { path: '/calendar', icon: 'calendar_month', label: 'Evo' },
             ];
 
@@ -1226,11 +1226,11 @@
                             <div className="mb-4 bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed font-medium">
                                 <div className="flex items-start gap-1.5 mb-1.5">
                                     <span className="ms fill text-amber-500 text-[14px] mt-0.5">egg_alt</span>
-                                    <span><span className="text-amber-500 font-bold">1份蛋白質 = </span> 1顆蛋 / 半掌心肉 / 半盒豆腐 / 1杯豆漿</span>
+                                    <span><span className="text-amber-500 font-bold">1 Protein = </span> 1 Egg / Half-palm meat / Half Tofu / 1Cup Soya</span>
                                 </div>
                                 <div className="flex items-start gap-1.5">
                                     <span className="ms fill text-lime text-[14px] mt-0.5">eco</span>
-                                    <span><span className="text-lime font-bold">1份纖維素 = </span> 1拳頭熟菜 / 1大碗生菜 / 1顆蘋果</span>
+                                    <span><span className="text-lime font-bold">1 Fiber = </span> 1fistful Vege / 1Big-bowl lettuce / 1apple</span>
                                 </div>
                             </div>
 
@@ -1245,7 +1245,7 @@
                                         <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m1_protein > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/5'}`}>
                                              <div className="flex items-center gap-1.5">
                                                  <span className="ms fill text-amber-500 text-[16px]">egg_alt</span>
-                                                 <span className={`text-[12px] font-bold ${log.m1_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Pro</span>
+                                                 <span className={`text-[12px] font-bold ${log.m1_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Protein</span>
                                              </div>
                                              <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
                                                  <button onClick={() => updateTask(activeDate, 'm1_protein', Math.max(0, (log.m1_protein||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
@@ -1256,7 +1256,7 @@
                                         <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m1_fiber > 0 ? 'border-lime/40 bg-lime/10' : 'border-white/5'}`}>
                                              <div className="flex items-center gap-1.5">
                                                  <span className="ms fill text-lime text-[16px]">eco</span>
-                                                 <span className={`text-[12px] font-bold ${log.m1_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fib</span>
+                                                 <span className={`text-[12px] font-bold ${log.m1_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fiber</span>
                                              </div>
                                              <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
                                                  <button onClick={() => updateTask(activeDate, 'm1_fiber', Math.max(0, (log.m1_fiber||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
@@ -1277,7 +1277,7 @@
                                         <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m2_protein > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/5'}`}>
                                              <div className="flex items-center gap-1.5">
                                                  <span className="ms fill text-amber-500 text-[16px]">egg_alt</span>
-                                                 <span className={`text-[12px] font-bold ${log.m2_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Pro</span>
+                                                 <span className={`text-[12px] font-bold ${log.m2_protein > 0 ? 'text-amber-500' : 'text-white'}`}>蛋白質 Protein</span>
                                              </div>
                                              <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
                                                  <button onClick={() => updateTask(activeDate, 'm2_protein', Math.max(0, (log.m2_protein||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
@@ -1288,7 +1288,7 @@
                                         <div className={`bg-white/5 rounded-xl p-2.5 border transition-colors flex flex-col justify-between h-20 ${log.m2_fiber > 0 ? 'border-lime/40 bg-lime/10' : 'border-white/5'}`}>
                                              <div className="flex items-center gap-1.5">
                                                  <span className="ms fill text-lime text-[16px]">eco</span>
-                                                 <span className={`text-[12px] font-bold ${log.m2_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fib</span>
+                                                 <span className={`text-[12px] font-bold ${log.m2_fiber > 0 ? 'text-lime' : 'text-white'}`}>纖維素 Fiber</span>
                                              </div>
                                              <div className="flex items-center justify-between bg-black/40 rounded-lg p-1 mt-auto">
                                                  <button onClick={() => updateTask(activeDate, 'm2_fiber', Math.max(0, (log.m2_fiber||0) - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 active:bg-white/10 rounded-md transition"><span className="ms text-[18px]">remove</span></button>
