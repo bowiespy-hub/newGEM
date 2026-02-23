@@ -214,19 +214,26 @@
         class ErrorBoundary extends React.Component {
             constructor(props) {
                 super(props);
-                this.state = { hasError: false };
+                this.state = { hasError: false, error: null };
             }
-            static getDerivedStateFromError(error) { return { hasError: true }; }
+            static getDerivedStateFromError(error) { return { hasError: true, error: error }; }
             render() {
                 if (this.state.hasError) {
-                    return <div className="p-10 text-white text-center flex flex-col items-center justify-center min-h-screen"><span className="ms text-[48px] text-rose mb-4">warning</span><h1 className="text-white font-bold mb-4">系統重整中</h1><button onClick={()=>window.location.reload()} className="px-6 py-3 bg-white/10 rounded-xl font-bold active:scale-95 transition-transform">點擊刷新</button></div>;
+                    return (
+                        <div className="p-10 text-white text-center flex flex-col items-center justify-center min-h-screen">
+                            <span className="ms text-[48px] text-rose mb-4">warning</span>
+                            <h1 className="text-white font-bold mb-4">系統重整中</h1>
+                            <p className="text-xs text-slate-500 mb-6 px-4">{this.state.error && this.state.error.toString()}</p>
+                            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white/10 rounded-xl font-bold active:scale-95 transition-transform">點擊刷新</button>
+                        </div>
+                    );
                 }
                 return this.props.children;
             }
         }
 
         const AppProvider = ({ children }) => {
-            const STORAGE_KEY = 'ATE_APP_DATA_PROD_FINAL';
+            const STORAGE_KEY = 'ATE_APP_DATA_PROD_V4';
 
             const loadInitialState = () => {
                 try {
@@ -243,8 +250,6 @@
             const [xp, setXp] = useState(savedState.xp || 0); 
             const [streak, setStreak] = useState(savedState.streak || 0);
             const [logs, setLogs] = useState(savedState.logs || {});
-            
-            // 全局計時器狀態 (跨頁面切換保留時間)
             const [timers, setTimers] = useState(savedState.timers || {});
             
             const [toasts, setToasts] = useState([]);
@@ -254,7 +259,7 @@
 
             const stateRef = useRef({ profile, xp, streak, logs, timers });
 
-            // 確保當天有紀錄結構
+            // Ensure daily structure
             useEffect(() => {
                 if (!logs[activeDate]) {
                     setLogs(prev => ({
@@ -269,18 +274,18 @@
                 }
             }, [activeDate, logs]);
 
-            // ✅ 核心修復：即時存檔，移除所有 debounce 延遲
+            // Sync to LocalStorage
             useEffect(() => {
-                const stateToSave = { profile, xp, streak, logs, timers };
-                stateRef.current = stateToSave;
+                const currentState = { profile, xp, streak, logs, timers };
+                stateRef.current = currentState;
                 try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentState));
                 } catch (e) {
                     console.error("Local Storage 儲存失敗", e);
                 }
             }, [profile, xp, streak, logs, timers]);
 
-            // 防殺後台保護：當 App 被縮小、隱藏、準備關閉時，強迫同步 stateRef 到 localStorage
+            // Prevent data loss when swiping app away (PWA/iOS)
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -346,7 +351,7 @@
                         setXp(currentXp => Math.max(0, currentXp + xpChange));
                         const actionText = xpChange > 0 ? '獲得' : '扣除';
                         const portionText = dietKeys.includes(taskKey) ? ' 份' : '';
-                        const shortName = TASK_NAMES[taskKey].split(' ')[0]; 
+                        const shortName = TASK_NAMES[taskKey] ? TASK_NAMES[taskKey].split(' ')[0] : taskKey; 
                         triggerToast(xpChange, `${actionText} ${shortName}${portionText}`);
                     }
 
@@ -354,7 +359,7 @@
                 });
             }, [triggerToast]);
 
-            // 真正的全局計時執行緒
+            // Global Timer Thread
             const timersRef = useRef(timers);
             const updateTaskRef = useRef(updateTask);
 
@@ -374,9 +379,9 @@
                         } else if (t.isRunning && t.timeLeft <= 0) {
                             nextTimers[key] = { ...t, isRunning: false, timeLeft: 0 };
                             hasChanges = true;
-                            const [d, tk] = key.split('|');
-                            if (d && tk) {
-                                updateTaskRef.current(d, tk, true);
+                            const parts = key.split('|');
+                            if (parts.length === 2) {
+                                updateTaskRef.current(parts[0], parts[1], true);
                             }
                         }
                     }
@@ -426,7 +431,7 @@
                 };
             }, [logs]);
 
-            // Streak 演算法：身、心、靈「皆」有進度才算數
+            // Strict Streak Logic
             useEffect(() => {
                 let currentStreak = 0;
                 let graceUsed = false;
@@ -480,7 +485,6 @@
 
                         {children}
                         
-                        {/* XP Toasts */}
                         {toasts.map(toast => (
                             <div key={toast.id} className="fixed left-1/2 top-[44%] z-[9999] pointer-events-none flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 animate-popMove font-display drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]">
                                 <div className={`text-[36px] font-black ${toast.amount > 0 ? 'text-lime' : 'text-rose'}`}>
@@ -492,7 +496,6 @@
                             </div>
                         ))}
 
-                        {/* Surprise Quest Modal */}
                         {surpriseQuest && (
                             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSurpriseQuest(null)}></div>
@@ -590,16 +593,16 @@
             const { activeDate, logs, updateTask, timers, setTimers } = useAppContext();
             const log = logs[activeDate] || {};
             const isDone = !!log[taskKey];
-            const taskConfig = TASKS[taskKey] || { duration: 60 };
+            const defaultDuration = (TASKS[taskKey] && TASKS[taskKey].duration) || 60;
             
             const timerKey = `${activeDate}|${taskKey}`;
-            const timerState = timers[timerKey] || { timeLeft: taskConfig.duration, isRunning: false };
+            const timerState = timers[timerKey] || { timeLeft: defaultDuration, isRunning: false };
             const { timeLeft, isRunning } = timerState;
 
             const updateLocalTimer = (updates) => {
                 setTimers(prev => ({
                     ...prev,
-                    [timerKey]: { ...(prev[timerKey] || { timeLeft: taskConfig.duration, isRunning: false }), ...updates }
+                    [timerKey]: { ...(prev[timerKey] || { timeLeft: defaultDuration, isRunning: false }), ...updates }
                 }));
             };
 
@@ -610,12 +613,12 @@
             
             const resetTimer = (e) => { 
                 e.preventDefault(); e.stopPropagation(); 
-                updateLocalTimer({ isRunning: false, timeLeft: taskConfig.duration }); 
+                updateLocalTimer({ isRunning: false, timeLeft: defaultDuration }); 
             };
             
             const toggleComplete = (e) => { 
                 e.preventDefault(); e.stopPropagation();
-                updateLocalTimer({ isRunning: false, timeLeft: taskConfig.duration }); 
+                updateLocalTimer({ isRunning: false, timeLeft: defaultDuration }); 
                 updateTask(activeDate, taskKey, !isDone); 
             };
 
@@ -634,7 +637,7 @@
 
             return (
                 <div className={`glass rounded-2xl p-3 shadow-glass transition-all relative overflow-hidden flex items-center justify-between gap-2 ${isDone ? `${theme.bg} ${theme.border}` : ''}`}>
-                    {isRunning && <div className="absolute inset-y-0 left-0 bg-white/5 transition-all ease-linear" style={{width: `${100 - (timeLeft/taskConfig.duration)*100}%`}}></div>}
+                    {isRunning && <div className="absolute inset-y-0 left-0 bg-white/5 transition-all ease-linear" style={{width: `${100 - (timeLeft/defaultDuration)*100}%`}}></div>}
                     
                     <div className="flex-1 flex items-center gap-3 cursor-pointer relative z-10 active:scale-[0.98] py-1" onClick={toggleComplete}>
                         <span className={`ms text-[22px] transition-colors ${isDone ? `fill ${theme.text}` : `text-slate-400`}`}>
@@ -644,19 +647,19 @@
                             <div className={`text-[14px] font-black leading-tight ${isDone ? theme.text : 'text-white'}`}>{title}</div>
                             <div className="text-[12px] font-semibold mt-0.5 flex items-center gap-1">
                                 {isDone ? (
-                                    <span className="text-slate-400">已完成 +{taskConfig.xp}</span>
+                                    <span className="text-slate-400">已完成 +{TASKS[taskKey].xp}</span>
                                 ) : isRunning ? (
                                     <div className={`flex items-center gap-1 ${theme.text}`}>
                                         <span className="font-mono">{formatTime(timeLeft)}</span>
                                         <span className="animate-pulse">進行中...</span>
                                     </div>
-                                ) : timeLeft < taskConfig.duration ? (
+                                ) : timeLeft < defaultDuration ? (
                                     <div className="flex items-center gap-1 text-amber-500">
                                         <span className="font-mono">{formatTime(timeLeft)}</span>
                                         <span>暫停中 Pause</span>
                                     </div>
                                 ) : (
-                                    <span className="text-slate-400">目標 {taskConfig.duration / 60} 分鐘</span>
+                                    <span className="text-slate-400">目標 {defaultDuration / 60} 分鐘</span>
                                 )}
                             </div>
                         </div>
@@ -665,7 +668,7 @@
                     <div className="shrink-0 flex items-center gap-1.5 relative z-10">
                         {!isDone && (
                             <div className="flex items-center gap-1.5">
-                                {timeLeft < taskConfig.duration && (
+                                {timeLeft < defaultDuration && (
                                     <button onClick={resetTimer} className="tap44 w-10 h-10 rounded-full flex items-center justify-center bg-white/5 text-slate-300 hover:text-white border border-white/10 transition-colors z-20">
                                         <span className="ms text-[18px]">refresh</span>
                                     </button>
@@ -680,19 +683,12 @@
             );
         };
 
-        // ✅ 語音輸入元件：修復函數型賦值造成的崩潰，保證純文字更新
         const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
             const { sttLang, setSttLang } = useAppContext();
             const [isRecording, setIsRecording] = useState(false);
             const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
             
             const recognitionRef = useRef(null);
-            // 透過 valueRef 來精準抓取當前的字串，避免傳遞 function 給 onChange
-            const valueRef = useRef(value || '');
-
-            useEffect(() => {
-                valueRef.current = value || '';
-            }, [value]);
 
             useEffect(() => {
                 if ('webkitSpeechRecognition' in window) {
@@ -707,13 +703,12 @@
                     recognition.onresult = (event) => {
                         let finalTranscript = '';
                         for (let i = event.resultIndex; i < event.results.length; ++i) {
-                            if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                            if (event.results[i].isFinal) {
+                                finalTranscript += event.results[i][0].transcript;
+                            }
                         }
                         if (finalTranscript) {
-                            // 使用 valueRef 取得最新字串拼接，傳遞純字串回上層
-                            const currentVal = valueRef.current;
-                            const newVal = (currentVal ? currentVal + ' ' : '') + finalTranscript.trim();
-                            onChange(newVal); 
+                            onChange((value ? value + ' ' : '') + finalTranscript.trim());
                         }
                     };
                     
@@ -728,7 +723,7 @@
                         try { recognitionRef.current.abort(); } catch(e){}
                     }
                 };
-            }, [sttLang, onChange]); 
+            }, [sttLang, onChange, value]); 
 
             const toggleRecord = () => {
                 if (!recognitionRef.current) {
@@ -852,7 +847,7 @@
             // 匯出/還原 功能
             const handleExport = () => {
                 try {
-                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD_FINAL');
+                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD_V4');
                     if (!dataStr) return alert("目前沒有可匯出的數據 No data to export");
                     const blob = new Blob([dataStr], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
@@ -876,7 +871,7 @@
                     try {
                         const data = JSON.parse(event.target.result);
                         if (data && typeof data === 'object') {
-                            localStorage.setItem('ATE_APP_DATA_PROD_FINAL', JSON.stringify(data));
+                            localStorage.setItem('ATE_APP_DATA_PROD_V4', JSON.stringify(data));
                             alert('數據還原成功！Data Restored Successfully!');
                             window.location.reload();
                         } else {
@@ -970,7 +965,7 @@
                             </div>
                         </div>
 
-                        {/* Overall Progress WITH HUGE PERCENTAGE */}
+                        {/* Overall Progress */}
                         <section className="glass rounded-2xl p-5 shadow-glass">
                             <div className="flex items-end justify-between mb-3">
                                 <div>
@@ -988,7 +983,7 @@
                             </div>
                             <div className="mt-3 flex items-center justify-between">
                                 <div className="text-[11px] text-slate-400 font-semibold leading-relaxed max-w-[70%]">
-                                    {prog.overall >= 70 ? '🔥 恭喜達標！將延續您的連續紀錄。' : '🎯 完成度達 70% 即可延續紀錄，繼續加油！'}
+                                    {prog.overall >= 70 ? '🔥 恭喜達標！將延續您的連續紀錄。' : '🎯 身心靈皆有進度即可延續紀錄，繼續加油！'}
                                 </div>
                                 <div className={`chip ${prog.overall >= 70 ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-white/5 border-white/10 text-slate-400'}`}>
                                     <span className="ms fill">stars</span><span>{prog.overall >= 70 ? '達標' : '進行中'}</span>
@@ -997,7 +992,7 @@
                         </section>
                     </main>
 
-                    {/* Centered Profile Edit Modal + Backup/Restore UI */}
+                    {/* Centered Profile Edit Modal + Backup UI */}
                     {isProfileOpen && (
                         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsProfileOpen(false)}></div>
@@ -1018,7 +1013,7 @@
                                             </div>
                                         </button>
                                         <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像 Upload Image</div>
+                                        <div className="text-[10px] text-slate-400 mb-3 font-semibold">點擊相機上傳照片，或選擇預設頭像</div>
                                         <div className="flex gap-2.5 justify-center w-full">
                                             {['Felix', 'Aneka', 'Bottts', 'Adventurer'].map(seed => (
                                                 <div key={seed} onClick={() => setTempAvatar(`https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=D4AF37`)} className="w-10 h-10 rounded-full border border-white/10 cursor-pointer overflow-hidden hover:border-gold transition-colors bg-white/5">
@@ -1033,11 +1028,10 @@
                                         <input type="text" value={tempName} onChange={e => setTempName(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 text-[14px] font-bold"/>
                                     </div>
 
-                                    {/* 備份與還原系統 */}
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <div className="text-[10px] text-slate-400 font-extrabold mb-2 uppercase tracking-widest flex items-center justify-between">
                                             <span>防遺失備份 Data Backup</span>
-                                            <span className="text-amber-500">※ iOS 本地必備</span>
+                                            <span className="text-amber-500">※ iOS 網頁版必備</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <button onClick={handleExport} className="tap44 glass2 border border-white/10 rounded-xl text-[12px] font-bold text-slate-200 active:scale-95 transition-transform flex items-center justify-center gap-1">
@@ -1056,7 +1050,7 @@
                                         <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
                                         <button onClick={() => { 
                                             if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
-                                                localStorage.removeItem('ATE_APP_DATA_PROD_FINAL');
+                                                localStorage.removeItem('ATE_APP_DATA_PROD_V4');
                                                 window.location.reload();
                                             }
                                         }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">系統重置 Reset</button>
@@ -1092,14 +1086,12 @@
                     </header>
 
                     <main className="px-4 pb-safe flex-1 space-y-3 relative z-10 overflow-y-auto no-scrollbar">
-                        {/* 兩餐營養追蹤 (Protein & Fiber) */}
                         <section className="glass rounded-2xl p-4 shadow-glass">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="ms fill text-rose text-[20px]">restaurant</span>
                                 <div className="text-[14px] font-black text-white">營養追蹤 <span className="text-[10px] text-slate-400 font-normal tracking-wider ml-1">NUTRITION</span></div>
                             </div>
                             
-                            {/* Nutritional Guide Box */}
                             <div className="mb-4 bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed font-medium">
                                 <div className="flex items-start gap-1.5 mb-1.5">
                                     <span className="ms fill text-amber-500 text-[14px] mt-0.5">egg_alt</span>
@@ -1112,7 +1104,6 @@
                             </div>
 
                             <div className="space-y-4">
-                                {/* 第一餐 */}
                                 <div className="flex flex-col gap-2.5">
                                     <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
                                         <span>Meal 1 第一餐</span>
@@ -1144,7 +1135,6 @@
                                     </div>
                                 </div>
                                 <div className="h-px w-full bg-white/10"></div>
-                                {/* 第二餐 */}
                                 <div className="flex flex-col gap-2.5">
                                     <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
                                         <span>Meal 2 第二餐</span>
@@ -1367,7 +1357,7 @@
                 const theme = colorMap[colorTheme];
                 const isExpanded = expanded[colorTheme];
 
-                // 篩選出「有完成」或「有填寫」的項目 (唯讀模式)
+                // 篩選出「有完成」或「有填寫」的項目
                 const completedKeys = taskKeys.filter(key => {
                     if (key === 'diet1') return ((log.m1_protein||0) > 0 || (log.m1_fiber||0) > 0);
                     if (key === 'diet2') return ((log.m2_protein||0) > 0 || (log.m2_fiber||0) > 0);
@@ -1564,5 +1554,3 @@
     </script>
 </body>
 </html>
-
-
