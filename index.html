@@ -233,7 +233,8 @@
         }
 
         const AppProvider = ({ children }) => {
-            const STORAGE_KEY = 'ATE_APP_DATA_PROD_V4';
+            // 版本號推進，確保快取更新
+            const STORAGE_KEY = 'ATE_APP_DATA_PROD_V5';
 
             const loadInitialState = () => {
                 try {
@@ -257,9 +258,10 @@
             const [sttLang, setSttLang] = useState('AUTO'); 
             const [surpriseQuest, setSurpriseQuest] = useState(null);
 
+            // 暴露出去給底層文字框緊急存檔用的 Ref
             const stateRef = useRef({ profile, xp, streak, logs, timers });
 
-            // Ensure daily structure
+            // 確保當天有紀錄結構
             useEffect(() => {
                 if (!logs[activeDate]) {
                     setLogs(prev => ({
@@ -274,7 +276,7 @@
                 }
             }, [activeDate, logs]);
 
-            // Sync to LocalStorage
+            // React 狀態同步到 Ref 與 LocalStorage
             useEffect(() => {
                 const currentState = { profile, xp, streak, logs, timers };
                 stateRef.current = currentState;
@@ -285,7 +287,7 @@
                 }
             }, [profile, xp, streak, logs, timers]);
 
-            // Prevent data loss when swiping app away (PWA/iOS)
+            // 全局防殺後台保護
             useEffect(() => {
                 const handleVisibilityChange = () => {
                     if (document.visibilityState === 'hidden') {
@@ -474,7 +476,7 @@
                 <AppContext.Provider value={{ 
                     profile, setProfile, xp, setXp, levelInfo, streak, 
                     logs, activeDate, setActiveDate, updateTask, getProgress, getTodayString,
-                    sttLang, setSttLang, getVerseForDate, timers, setTimers
+                    sttLang, setSttLang, getVerseForDate, timers, setTimers, stateRef
                 }}>
                     <div className="app-container">
                         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -485,6 +487,7 @@
 
                         {children}
                         
+                        {/* XP Toasts */}
                         {toasts.map(toast => (
                             <div key={toast.id} className="fixed left-1/2 top-[44%] z-[9999] pointer-events-none flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 animate-popMove font-display drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]">
                                 <div className={`text-[36px] font-black ${toast.amount > 0 ? 'text-lime' : 'text-rose'}`}>
@@ -496,6 +499,7 @@
                             </div>
                         ))}
 
+                        {/* Surprise Quest Modal */}
                         {surpriseQuest && (
                             <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fadeIn">
                                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSurpriseQuest(null)}></div>
@@ -683,12 +687,57 @@
             );
         };
 
+        // ✅ 防彈級文字框：兼顧中文輸入法 (IME) 滑順度與防殺後台絕對存檔
         const VoiceTextarea = ({ value, onChange, placeholder, title, icon, isDone, taskKey }) => {
-            const { sttLang, setSttLang } = useAppContext();
+            const { sttLang, setSttLang, stateRef, activeDate } = useAppContext();
             const [isRecording, setIsRecording] = useState(false);
             const [isLangSheetOpen, setIsLangSheetOpen] = useState(false);
             
             const recognitionRef = useRef(null);
+            
+            // 使用 localVal 保證中文輸入法 (IME) 不會被 React 強制刷新打斷
+            const [localVal, setLocalVal] = useState(value || '');
+            const latestVal = useRef(value || '');
+
+            useEffect(() => {
+                setLocalVal(value || '');
+                latestVal.current = value || '';
+            }, [value]);
+
+            const handleChange = (e) => {
+                setLocalVal(e.target.value);
+                latestVal.current = e.target.value;
+            };
+
+            const handleBlur = () => {
+                if (latestVal.current !== value) {
+                    onChange(latestVal.current);
+                }
+            };
+
+            // ⚠️ 極致防殺後台：如果使用者正在打字，直接滑掉 App，此監聽器會硬寫入 LocalStorage
+            useEffect(() => {
+                const handleHide = () => {
+                    if (latestVal.current !== value) {
+                        onChange(latestVal.current); 
+                        if (stateRef && stateRef.current) {
+                            const currentLogs = stateRef.current.logs;
+                            const dayLog = currentLogs[activeDate] || {};
+                            const newLogs = { ...currentLogs, [activeDate]: { ...dayLog, [taskKey]: latestVal.current } };
+                            const newState = { ...stateRef.current, logs: newLogs };
+                            localStorage.setItem('ATE_APP_DATA_PROD_V5', JSON.stringify(newState));
+                        }
+                    }
+                };
+                window.addEventListener('pagehide', handleHide);
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') handleHide();
+                });
+                return () => {
+                    window.removeEventListener('pagehide', handleHide);
+                    document.removeEventListener('visibilitychange', handleHide); 
+                }
+            }, [activeDate, taskKey, value, onChange, stateRef]);
 
             useEffect(() => {
                 if ('webkitSpeechRecognition' in window) {
@@ -703,12 +752,14 @@
                     recognition.onresult = (event) => {
                         let finalTranscript = '';
                         for (let i = event.resultIndex; i < event.results.length; ++i) {
-                            if (event.results[i].isFinal) {
-                                finalTranscript += event.results[i][0].transcript;
-                            }
+                            if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                         }
                         if (finalTranscript) {
-                            onChange((value ? value + ' ' : '') + finalTranscript.trim());
+                            const currentVal = latestVal.current;
+                            const newVal = (currentVal ? currentVal + ' ' : '') + finalTranscript.trim();
+                            setLocalVal(newVal);
+                            latestVal.current = newVal;
+                            onChange(newVal); // 語音結束直接入庫
                         }
                     };
                     
@@ -723,7 +774,7 @@
                         try { recognitionRef.current.abort(); } catch(e){}
                     }
                 };
-            }, [sttLang, onChange, value]); 
+            }, [sttLang, onChange]); 
 
             const toggleRecord = () => {
                 if (!recognitionRef.current) {
@@ -759,8 +810,9 @@
                             </button>
                         </div>
                         <textarea 
-                            value={value || ''} 
-                            onChange={(e) => onChange(e.target.value)}
+                            value={localVal} 
+                            onChange={handleChange}
+                            onBlur={handleBlur}
                             className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                             placeholder={placeholder}></textarea>
                         
@@ -770,6 +822,7 @@
                         </div>
                     </section>
 
+                    {/* Language Bottom Sheet */}
                     {isLangSheetOpen && (
                         <div className="fixed inset-0 z-[300]">
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsLangSheetOpen(false)}></div>
@@ -800,8 +853,52 @@
         };
 
         const SimpleTextarea = ({ value, onChange, placeholder, icon, title, isDone, themeColor = 'violet2', taskKey }) => {
+            const { activeDate, stateRef } = useAppContext();
             const colorClass = themeColor === 'cyan' ? 'text-cyan border-cyan/40 bg-cyan/5' : 'text-violet2 border-violet2/40 bg-violet2/5';
             const iconColor = themeColor === 'cyan' ? 'text-cyan' : 'text-violet2';
+
+            const [localVal, setLocalVal] = useState(value || '');
+            const latestVal = useRef(value || '');
+
+            useEffect(() => {
+                setLocalVal(value || '');
+                latestVal.current = value || '';
+            }, [value]);
+
+            const handleChange = (e) => {
+                setLocalVal(e.target.value);
+                latestVal.current = e.target.value;
+            };
+
+            const handleBlur = () => {
+                if (latestVal.current !== value) {
+                    onChange(latestVal.current);
+                }
+            };
+
+            // 防殺後台：強制直接寫入硬碟
+            useEffect(() => {
+                const handleHide = () => {
+                    if (latestVal.current !== value) {
+                        onChange(latestVal.current); 
+                        if (stateRef && stateRef.current) {
+                            const currentLogs = stateRef.current.logs;
+                            const dayLog = currentLogs[activeDate] || {};
+                            const newLogs = { ...currentLogs, [activeDate]: { ...dayLog, [taskKey]: latestVal.current } };
+                            const newState = { ...stateRef.current, logs: newLogs };
+                            localStorage.setItem('ATE_APP_DATA_PROD_V5', JSON.stringify(newState));
+                        }
+                    }
+                };
+                window.addEventListener('pagehide', handleHide);
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') handleHide();
+                });
+                return () => {
+                    window.removeEventListener('pagehide', handleHide);
+                    // 為了確保不殘留，這裡依賴 useEffect 自動 clean
+                }
+            }, [activeDate, taskKey, value, onChange, stateRef]);
 
             return (
                 <section className={`glass rounded-2xl p-4 shadow-glass transition-colors ${isDone ? colorClass : ''}`}>
@@ -813,8 +910,9 @@
                         </div>
                     </div>
                     <textarea 
-                        value={value || ''} 
-                        onChange={(e) => onChange(e.target.value)}
+                        value={localVal} 
+                        onChange={handleChange}
+                        onBlur={handleBlur}
                         className="mt-3 w-full h-20 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 px-3.5 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 resize-none text-[13px]"
                         placeholder={placeholder}></textarea>
                 </section>
@@ -847,7 +945,7 @@
             // 匯出/還原 功能
             const handleExport = () => {
                 try {
-                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD_V4');
+                    const dataStr = localStorage.getItem('ATE_APP_DATA_PROD_V5');
                     if (!dataStr) return alert("目前沒有可匯出的數據 No data to export");
                     const blob = new Blob([dataStr], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
@@ -871,7 +969,7 @@
                     try {
                         const data = JSON.parse(event.target.result);
                         if (data && typeof data === 'object') {
-                            localStorage.setItem('ATE_APP_DATA_PROD_V4', JSON.stringify(data));
+                            localStorage.setItem('ATE_APP_DATA_PROD_V5', JSON.stringify(data));
                             alert('數據還原成功！Data Restored Successfully!');
                             window.location.reload();
                         } else {
@@ -1028,6 +1126,7 @@
                                         <input type="text" value={tempName} onChange={e => setTempName(e.target.value)} className="w-full rounded-xl bg-white/5 border border-white/10 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet/40 text-[14px] font-bold"/>
                                     </div>
 
+                                    {/* 備份與還原系統 */}
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <div className="text-[10px] text-slate-400 font-extrabold mb-2 uppercase tracking-widest flex items-center justify-between">
                                             <span>防遺失備份 Data Backup</span>
@@ -1050,7 +1149,7 @@
                                         <button onClick={() => { setProfile({ name: tempName, avatar: tempAvatar }); setIsProfileOpen(false); }} className="tap44 rounded-xl font-black text-ink bg-gradient-to-r from-gold via-gold2 to-gold shadow-gold active:scale-95 transition-transform text-[13px]">保存 Save</button>
                                         <button onClick={() => { 
                                             if(window.confirm('確定要將所有數據歸零嗎？此動作無法復原。Reset all data?')) {
-                                                localStorage.removeItem('ATE_APP_DATA_PROD_V4');
+                                                localStorage.removeItem('ATE_APP_DATA_PROD_V5');
                                                 window.location.reload();
                                             }
                                         }} className="tap44 glass2 border border-rose/30 rounded-xl font-black text-rose active:scale-95 transition-transform text-[13px] bg-rose/10">系統重置 Reset</button>
@@ -1086,12 +1185,14 @@
                     </header>
 
                     <main className="px-4 pb-safe flex-1 space-y-3 relative z-10 overflow-y-auto no-scrollbar">
+                        {/* 兩餐營養追蹤 (Protein & Fiber) */}
                         <section className="glass rounded-2xl p-4 shadow-glass">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="ms fill text-rose text-[20px]">restaurant</span>
                                 <div className="text-[14px] font-black text-white">營養追蹤 <span className="text-[10px] text-slate-400 font-normal tracking-wider ml-1">NUTRITION</span></div>
                             </div>
                             
+                            {/* Nutritional Guide Box */}
                             <div className="mb-4 bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed font-medium">
                                 <div className="flex items-start gap-1.5 mb-1.5">
                                     <span className="ms fill text-amber-500 text-[14px] mt-0.5">egg_alt</span>
@@ -1104,6 +1205,7 @@
                             </div>
 
                             <div className="space-y-4">
+                                {/* 第一餐 */}
                                 <div className="flex flex-col gap-2.5">
                                     <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
                                         <span>Meal 1 第一餐</span>
@@ -1135,6 +1237,7 @@
                                     </div>
                                 </div>
                                 <div className="h-px w-full bg-white/10"></div>
+                                {/* 第二餐 */}
                                 <div className="flex flex-col gap-2.5">
                                     <div className="text-[11px] font-extrabold text-slate-400 tracking-widest uppercase flex items-center justify-between">
                                         <span>Meal 2 第二餐</span>
@@ -1357,7 +1460,7 @@
                 const theme = colorMap[colorTheme];
                 const isExpanded = expanded[colorTheme];
 
-                // 篩選出「有完成」或「有填寫」的項目
+                // 篩選出「有完成」或「有填寫」的項目 (唯讀模式)
                 const completedKeys = taskKeys.filter(key => {
                     if (key === 'diet1') return ((log.m1_protein||0) > 0 || (log.m1_fiber||0) > 0);
                     if (key === 'diet2') return ((log.m2_protein||0) > 0 || (log.m2_fiber||0) > 0);
